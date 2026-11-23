@@ -9,6 +9,7 @@ import com.specshield.ledgerline.webhook.MerchantSink;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
+import io.restassured.specification.RequestSpecification;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -22,6 +23,11 @@ import org.springframework.test.context.ActiveProfiles;
 @ActiveProfiles("test")
 @Import({PostgresContainerConfig.class, MutableClockConfig.class})
 abstract class ApiTestSupport {
+
+    static final String ADMIN_USER = "test-admin";
+    static final String ADMIN_PASSWORD = "test-only-admin-password-0001";
+    static final String VIEWER_USER = "test-viewer";
+    static final String VIEWER_PASSWORD = "test-only-viewer-password-0001";
 
     static final String ORDER_JSON = """
             {"merchantRef":"synthetic-order-1001","amountMinor":2599,"currency":"USD"}""";
@@ -41,6 +47,9 @@ abstract class ApiTestSupport {
     @Autowired
     MerchantSink merchantSink;
 
+    @Autowired
+    RateLimiter rateLimiter;
+
     @BeforeEach
     void resetState() {
         RestAssured.port = port;
@@ -48,6 +57,8 @@ abstract class ApiTestSupport {
         TestOnlyFailureController.reset();
         failureHook.disarm();
         merchantSink.reset();
+        rateLimiter.reset();
+        // Not shedlock: ShedLock remembers which lock rows it has inserted and afterwards only updates them.
         jdbc.execute(
                 "TRUNCATE orders, order_events_inbox, audit_log, idempotency_keys, outbox, mockpay_ledger RESTART IDENTITY");
     }
@@ -74,6 +85,14 @@ abstract class ApiTestSupport {
                 .statusCode(201)
                 .extract()
                 .path("id");
+    }
+
+    static RequestSpecification asAdmin() {
+        return given().auth().preemptive().basic(ADMIN_USER, ADMIN_PASSWORD);
+    }
+
+    static RequestSpecification asViewer() {
+        return given().auth().preemptive().basic(VIEWER_USER, VIEWER_PASSWORD);
     }
 
     long count(String table) {

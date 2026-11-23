@@ -45,4 +45,7 @@ COPY --from=build --chown=ledgerline:ledgerline /workspace/extracted/application
 USER 10001:10001
 EXPOSE 8080
 ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=75 -XX:+ExitOnOutOfMemoryError"
+# Reported by GET /api/v1/meta. Pass it at build time: docker build --build-arg GIT_SHA=$(git rev-parse --short HEAD)
+ARG GIT_SHA=unknown
+ENV LEDGERLINE_GIT_SHA=${GIT_SHA}
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]

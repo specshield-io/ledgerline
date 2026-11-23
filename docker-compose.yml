@@ -26,6 +26,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # GIT_SHA=$(git rev-parse --short HEAD) docker compose up --build
+        GIT_SHA: ${GIT_SHA:-unknown}
     image: ledgerline-api:local
     depends_on:
       postgres:

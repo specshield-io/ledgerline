@@ -17,7 +17,7 @@ Ledgerline is a reliable order and payment event processing service. The goal is
 tests, how to process payment events correctly: idempotency, a transactional outbox, signed webhooks,
 retries and failure handling under chaos.
 
-**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, the hardened webhook receiver, and signed merchant notifications through a transactional outbox. Chaos experiments come next.
+**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, the hardened webhook receiver, signed merchant notifications through a transactional outbox, and a public chaos API with rate limiting, role-based admin access and self-resetting demo data. The operations console comes next.
 
 ## Stack
 
@@ -52,7 +52,45 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 ```
 
 Profiles: `local` (default, PostgreSQL on localhost), `test` (Testcontainers), `prod` (all settings from
-environment variables `LEDGERLINE_DB_URL`, `LEDGERLINE_DB_USER`, `LEDGERLINE_DB_PASSWORD`).
+environment variables `LEDGERLINE_DB_URL`, `LEDGERLINE_DB_USER`, `LEDGERLINE_DB_PASSWORD`, plus the secrets and
+accounts listed under [Security](#security)).
+
+## Try it
+
+Start the stack (`docker compose up --build`), then break things. Each scenario creates its **own** synthetic order
+and drives it through a failure mode with real signed HTTP webhooks from MockPay; it never touches existing orders.
+The answer is `202 {"scenarioRunId": ..., "orderId": ...}`; watch the run, or the order's timeline, which shows every
+step (`CHAOS_STEP`), every provider event with its outcome, and every audit row.
+
+```bash
+B=http://localhost:8080
+start() { curl -s -X POST "$B/api/v1/chaos/scenarios/$1" -H "Idempotency-Key: $(uuidgen)"; echo; }
+
+start happy-path        # create + pay through MockPay                       -> PAID
+start duplicate-storm   # the success event delivered 5 times at once        -> PAID, applied once, 4 DUPLICATE
+start tampered-webhook  # body altered after signing                         -> 400, REJECTED, stays PAYMENT_PENDING
+start replay-attack     # valid signature, timestamp 10 minutes old          -> 400, REJECTED, stays PAYMENT_PENDING
+start out-of-order      # SUCCEEDED (seq 2), then a late FAILED (seq 1)      -> PAID, one STALE
+start merchant-down     # demo merchant answers 500 for 2 min                -> order.paid retried, DELIVERED after
+start merchant-slow     # demo merchant takes 10 s for 2 min                 -> deliveries time out at 3 s, retried
+start refund-flow       # pay, refund 15.00, refund the remaining 34.99      -> REFUNDED
+
+# Follow a run (steps with the receiver's HTTP status), then the order's timeline:
+curl -s "$B/api/v1/chaos/runs/<scenarioRunId>"
+curl -s "$B/api/v1/orders/<orderId>/timeline"
+# The merchant's side of merchant-down / merchant-slow, and the outbox (VIEWER account, local profile):
+curl -s "$B/demo/merchant-sink"
+curl -s -u local-viewer:local-dev-only-viewer-password "$B/api/v1/admin/outbox?status=PENDING"
+```
+
+`GET /api/v1/chaos/scenarios` lists the scenarios. Limits: 10 scenario starts per minute per client, and 3 runs in
+progress at once across everyone (`429` problem with `Retry-After`). The same `Idempotency-Key` returns the same run.
+merchant-down and merchant-slow switch the shared demo merchant, so they affect everyone's notifications for
+2 minutes; with the backoff, the delayed `order.paid` usually arrives a few minutes after the outage ends.
+
+The demo data (25 synthetic orders, `demo-1001` to `demo-1025`, across every status) is seeded when the database is
+empty and wiped and reseeded every night at 03:00 UTC. `GET /api/v1/meta` returns the banner:
+`{"demo":true,"dataResetsAt":"03:00 UTC","version":"...","gitSha":"..."}`.
 
 ## API
 
@@ -187,19 +225,19 @@ Ledgerline-Delivery-Attempt: 1
   (`ledgerline.merchant.signing-secrets`; in `prod` from `LEDGERLINE_MERCHANT_SIGNING_SECRETS`, with the URL from
   `LEDGERLINE_MERCHANT_URL`).
 
-Operator endpoints (unauthenticated in this demo; `X-Operator` is self-declared and recorded in the audit log):
+Operator endpoints (HTTP Basic; see [Security](#security); the authenticated user is recorded in the audit log):
 
 ```bash
-# List, newest first; filter by PENDING, IN_FLIGHT, DELIVERED or DEAD
-curl -s 'localhost:8080/api/v1/admin/outbox?status=DEAD'
-# Send a DEAD message again (attempts reset; OUTBOX_REPLAYED audit row with actor operator:ops-oncall-1)
-curl -s -X POST localhost:8080/api/v1/admin/outbox/42/replay \
-  -H 'Idempotency-Key: replay-42-0001' -H 'X-Operator: ops-oncall-1'
+# List, newest first; filter by PENDING, IN_FLIGHT, DELIVERED or DEAD (VIEWER or ADMIN)
+curl -s -u local-viewer:local-dev-only-viewer-password 'localhost:8080/api/v1/admin/outbox?status=DEAD'
+# Send a DEAD message again (ADMIN; attempts reset; OUTBOX_REPLAYED audit row with actor operator:local-admin)
+curl -s -u local-admin:local-dev-only-admin-password -X POST localhost:8080/api/v1/admin/outbox/42/replay \
+  -H 'Idempotency-Key: replay-42-0001'
 ```
 
 In the `local` profile the notifications go to a built-in **demo merchant**, `POST /demo/merchant-sink`, which
-verifies the signature, deduplicates by event id and records what it received (`GET /demo/merchant-sink`). It can
-be switched to fail (500) or answer slowly; the HTTP switch arrives with the chaos API. It is off in `prod` and not
+verifies the signature, deduplicates by event id and records what it received (`GET /demo/merchant-sink`). The
+merchant-down and merchant-slow chaos scenarios make it fail (500) or answer slowly for 2 minutes. It is off in `prod` and not
 part of the OpenAPI document.
 
 Metrics (Prometheus): `ledgerline_outbox_pending`, `ledgerline_outbox_oldest_pending_age_seconds`,
@@ -207,6 +245,40 @@ Metrics (Prometheus): `ledgerline_outbox_pending`, `ledgerline_outbox_oldest_pen
 `ledgerline_outbox_watchdog_released_total` and the timer `ledgerline_outbox_delivery_seconds{outcome}`. Why an
 outbox rather than dual-write, why no broker yet, and how to move to Kafka or SQS:
 [ADR 0003](docs/adr/0003-transactional-outbox.md).
+
+## Security
+
+| Who | May use |
+|---|---|
+| Anyone (rate limited) | `GET/POST /api/v1/orders/**`, `/api/v1/chaos/**`, `/api/v1/meta`, `/actuator/health`, `/actuator/info`, `/v3/api-docs`, Swagger UI |
+| Signed callers | `POST /webhooks/mockpay` (MockPay HMAC), `/demo/merchant-sink` (Ledgerline HMAC) |
+| `VIEWER` (HTTP Basic) | `GET /api/v1/admin/**`, `/actuator/prometheus` |
+| `ADMIN` (HTTP Basic) | everything above, plus `POST /api/v1/admin/outbox/{id}/replay` and `POST /api/v1/admin/reset` |
+
+Everything else is `403`. An anonymous request to an admin path is `401` with `WWW-Authenticate: Basic`. Both are
+problem+json.
+
+- **Accounts** come from configuration as **BCrypt hashes**, never passwords. In `prod`:
+  `LEDGERLINE_ADMIN_USERNAME` and `LEDGERLINE_ADMIN_PASSWORD_HASH` (required; startup fails without them), and
+  optionally `LEDGERLINE_VIEWER_USERNAME` and `LEDGERLINE_VIEWER_PASSWORD_HASH`. Make a hash with, for example,
+  `htpasswd -nbBC 12 "" 'your-password' | cut -d: -f2`. The `local` and `test` profiles contain synthetic accounts
+  whose passwords are written next to them in `application.yml`; they are not secrets.
+- **Rate limits** (Bucket4j, in memory, per instance, per client IP): 60 requests per minute to the API and its
+  documentation, 10 chaos scenario starts per minute. Over the limit: `429` problem+json with `Retry-After`.
+  Webhooks are authenticated by signature and not limited. Limits apply before authentication, so floods with bogus
+  credentials cost no BCrypt work. With N instances the effective limit is N times higher.
+- **Client IP.** `X-Forwarded-For` is trusted only when the TCP peer is in `LEDGERLINE_TRUSTED_PROXIES` (comma
+  separated CIDRs of the Fly.io or Cloudflare proxies in front of the app), and is then read from the right. Unset,
+  the header is ignored. The proxy ranges for a given deployment must be configured there; none are built in.
+- **Headers** on every response: `Strict-Transport-Security: max-age=31536000; includeSubDomains`,
+  `X-Content-Type-Options: nosniff`, `Content-Security-Policy: frame-ancestors 'none'`, `X-Frame-Options: DENY`,
+  `Referrer-Policy: strict-origin-when-cross-origin`.
+- **CORS**: `/api/**` from `https://www.specshield.example` (plus `http://localhost:5173` and `:3000` in `local`),
+  methods GET and POST, no credentials.
+- **CSRF** protection is off only for `/api/**`, `/webhooks/**` and the demo merchant: they use no cookies or sessions,
+  and every state-changing API call needs the `Idempotency-Key` header, which a browser cannot send cross-origin
+  without a CORS preflight.
+- **Request bodies** are at most 64 KiB (`413`, also for chunked bodies) and must be JSON (`415`).
 
 ## Domain model
 
@@ -243,10 +315,10 @@ shuffled, and checks it reaches the same final status and refunded amount as the
 
 ## Database schema
 
-Flyway `V1__init.sql` to `V4__outbox_relay.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
+Flyway `V1__init.sql` to `V5__shedlock.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
 `provider, provider_event_id`; `order_id` for the timeline), `audit_log`, `idempotency_keys` (raw response bytes
 for exact replay), `mockpay_ledger` (the simulator's own record), `outbox` (partial index on `next_attempt_at` where `status = 'PENDING'`; `claimed_at` set only while
-`IN_FLIGHT`).
+`IN_FLIGHT`), `shedlock` (the lock that keeps the demo reset from running twice at once).
 Check constraints mirror the domain invariants (amount range, `USD`, status list, refunded amount consistent
 with status). Hibernate only validates the schema.
 

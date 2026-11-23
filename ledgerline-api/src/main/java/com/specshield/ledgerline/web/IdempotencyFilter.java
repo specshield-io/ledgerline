@@ -125,8 +125,9 @@ public class IdempotencyFilter extends OncePerRequestFilter {
         }
         int status = wrapper.getStatus();
         try {
-            if (status >= 500) {
-                idempotency.abandon(key); // server errors are not stored: the client may retry
+            if (status >= 500 || status == 429) {
+                // Server errors and "too many requests" are not stored: the client may retry with the same key.
+                idempotency.abandon(key);
             } else {
                 idempotency.complete(
                         key,

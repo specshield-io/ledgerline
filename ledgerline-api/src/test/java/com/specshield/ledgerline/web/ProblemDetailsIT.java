@@ -70,6 +70,32 @@ class ProblemDetailsIT extends ApiTestSupport {
                         () -> given().queryParam("size", 1000).get("/api/v1/orders")),
                 new Case("denied by security", 403, "forbidden", "/actuator/env", () -> given().get("/actuator/env")),
                 new Case(
+                        "admin without credentials",
+                        401,
+                        "unauthorized",
+                        "/api/v1/admin/outbox",
+                        () -> given().get("/api/v1/admin/outbox")),
+                new Case(
+                        "admin action as VIEWER",
+                        403,
+                        "forbidden",
+                        "/api/v1/admin/reset",
+                        () -> asViewer()
+                                .header(IdempotencyFilter.HEADER, "key-c02-0007")
+                                .post("/api/v1/admin/reset")),
+                new Case(
+                        "unknown chaos scenario",
+                        404,
+                        "scenario-not-found",
+                        "/api/v1/chaos/scenarios/meteor-strike",
+                        () -> post("/api/v1/chaos/scenarios/meteor-strike", "key-c02-0008")),
+                new Case(
+                        "chaos without MockPay",
+                        503,
+                        "chaos-unavailable",
+                        "/api/v1/chaos/scenarios/happy-path",
+                        () -> post("/api/v1/chaos/scenarios/happy-path", "key-c02-0009")),
+                new Case(
                         "unknown order",
                         404,
                         "order-not-found",

@@ -8,11 +8,13 @@ import io.swagger.v3.oas.annotations.enums.ParameterIn;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.security.SecurityRequirement;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
+import java.security.Principal;
 import java.util.Optional;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,15 +26,14 @@ import org.springframework.web.bind.annotation.RestController;
 import tools.jackson.databind.json.JsonMapper;
 
 /**
- * Operator view of the outbox. Unauthenticated like the rest of this demo API; the operator name is self-declared
- * in {@code X-Operator} and recorded in the audit log, and will come from authentication once it exists.
+ * Operator view of the outbox. Listing needs the VIEWER or ADMIN role, replay needs ADMIN (HTTP Basic, see
+ * config.SecurityConfig); the authenticated user is recorded as the audit actor.
  */
 @RestController
 @RequestMapping("/api/v1/admin/outbox")
 @Tag(name = "Outbox administration", description = "Inspect merchant notifications and replay dead ones")
+@SecurityRequirement(name = OpenApiSecurity.BASIC)
 public class OutboxAdminController {
-
-    public static final String OPERATOR_HEADER = "X-Operator";
 
     private static final String PROBLEM = "application/problem+json";
 
@@ -45,7 +46,7 @@ public class OutboxAdminController {
     }
 
     @GetMapping
-    @Operation(summary = "List outbox messages, newest first")
+    @Operation(summary = "List outbox messages, newest first (VIEWER or ADMIN)")
     @ApiResponse(
             responseCode = "200",
             description = "A page of outbox messages",
@@ -70,7 +71,7 @@ public class OutboxAdminController {
     @Operation(
             summary = "Replay a DEAD message",
             description = "Moves a DEAD message back to PENDING with its attempts reset; the dispatcher delivers it"
-                    + " again. Writes an OUTBOX_REPLAYED audit row with actor operator:<X-Operator>.")
+                    + " again. ADMIN only. Writes an OUTBOX_REPLAYED audit row with actor operator:<user>.")
     @ApiResponse(
             responseCode = "200",
             description = "The message, now PENDING (or the replayed response)",
@@ -80,7 +81,7 @@ public class OutboxAdminController {
                             schema = @Schema(implementation = OutboxMessageResponse.class)))
     @ApiResponse(
             responseCode = "400",
-            description = "Missing or invalid Idempotency-Key or X-Operator",
+            description = "Missing or invalid Idempotency-Key",
             content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
     @ApiResponse(
             responseCode = "404",
@@ -103,15 +104,8 @@ public class OutboxAdminController {
                     @Size(min = 8, max = 128)
                     @Pattern(regexp = "[A-Za-z0-9_-]+")
                     String idempotencyKey,
-            @Parameter(
-                            in = ParameterIn.HEADER,
-                            required = true,
-                            description = "Who is replaying (1-64 characters, [A-Za-z0-9._@-]); recorded in the audit"
-                                    + " log")
-                    @RequestHeader(OPERATOR_HEADER)
-                    @Pattern(regexp = "[A-Za-z0-9._@-]{1,64}")
-                    String operator,
+            Principal principal,
             @PathVariable long id) {
-        return OutboxMessageResponse.from(outbox.replay(id, operator), json);
+        return OutboxMessageResponse.from(outbox.replay(id, principal.getName()), json);
     }
 }

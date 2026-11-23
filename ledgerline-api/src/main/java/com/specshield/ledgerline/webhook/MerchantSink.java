@@ -17,8 +17,9 @@ import org.springframework.stereotype.Component;
  * system, not part of Ledgerline. It deduplicates by {@code Ledgerline-Event-Id}, as a real receiver must, and
  * reports repeats as duplicates.
  *
- * <p>{@link Mode#FAIL} answers 500 and {@link Mode#SLOW} answers after a delay. The chaos API (A5) will switch modes
- * over HTTP; until then they are set in code (tests) only.
+ * <p>{@link Mode#FAIL} answers 500 and {@link Mode#SLOW} answers after a delay. The chaos scenarios
+ * {@code merchant-down} and {@code merchant-slow} switch them on for a time window ({@link #failFor},
+ * {@link #slowFor}), measured with the injected clock; afterwards the sink is OK again.
  */
 @Component
 @ConditionalOnProperty(name = "ledgerline.merchant.sink.enabled", havingValue = "true")
@@ -53,6 +54,8 @@ public class MerchantSink {
     private final Set<String> accepted = new HashSet<>();
     private volatile Mode mode = Mode.OK;
     private volatile Duration slowDelay = Duration.ofSeconds(5);
+    /** When the current FAIL or SLOW mode ends; null means until changed. */
+    private volatile Instant modeUntil;
 
     public MerchantSink(MerchantSinkProperties properties, Clock clock) {
         if (properties.secrets().isEmpty()) {
@@ -64,15 +67,38 @@ public class MerchantSink {
     }
 
     public Mode mode() {
+        Instant until = modeUntil;
+        if (until != null && !clock.instant().isBefore(until)) {
+            return Mode.OK;
+        }
         return mode;
+    }
+
+    /** When the current FAIL or SLOW window ends, or null. */
+    public Instant modeUntil() {
+        return modeUntil;
+    }
+
+    /** Answer 500 for {@code window}, then recover. */
+    public synchronized void failFor(Duration window) {
+        this.mode = Mode.FAIL;
+        this.modeUntil = clock.instant().plus(window);
+    }
+
+    /** Answer after {@code delay} for {@code window}, then recover. */
+    public synchronized void slowFor(Duration delay, Duration window) {
+        this.slowDelay = Objects.requireNonNull(delay, "delay");
+        this.mode = Mode.SLOW;
+        this.modeUntil = clock.instant().plus(window);
     }
 
     public Duration slowDelay() {
         return slowDelay;
     }
 
-    public void setMode(Mode mode) {
+    public synchronized void setMode(Mode mode) {
         this.mode = Objects.requireNonNull(mode, "mode");
+        this.modeUntil = null;
     }
 
     public void setSlowDelay(Duration delay) {
@@ -112,5 +138,6 @@ public class MerchantSink {
         accepted.clear();
         mode = Mode.OK;
         slowDelay = Duration.ofSeconds(5);
+        modeUntil = null;
     }
 }
