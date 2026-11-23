@@ -4,6 +4,7 @@ import com.specshield.ledgerline.application.OrderNotFoundException;
 import com.specshield.ledgerline.application.OrderService;
 import com.specshield.ledgerline.application.OutboxMessageNotFoundException;
 import com.specshield.ledgerline.application.OutboxMessageNotReplayableException;
+import com.specshield.ledgerline.chaos.ChaosExceptions;
 import com.specshield.ledgerline.domain.IllegalTransitionException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
@@ -43,6 +44,52 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OrderNotFoundException.class)
     ResponseEntity<ProblemDetail> orderNotFound(OrderNotFoundException e, HttpServletRequest request) {
         return respond(HttpStatus.NOT_FOUND, ProblemTypes.ORDER_NOT_FOUND, "Order not found", e.getMessage(), request);
+    }
+
+    @ExceptionHandler(ChaosExceptions.ScenarioNotFound.class)
+    ResponseEntity<ProblemDetail> scenarioNotFound(ChaosExceptions.ScenarioNotFound e, HttpServletRequest request) {
+        return respond(
+                HttpStatus.NOT_FOUND, ProblemTypes.SCENARIO_NOT_FOUND, "Scenario not found", e.getMessage(), request);
+    }
+
+    @ExceptionHandler(ChaosExceptions.RunNotFound.class)
+    ResponseEntity<ProblemDetail> runNotFound(ChaosExceptions.RunNotFound e, HttpServletRequest request) {
+        return respond(
+                HttpStatus.NOT_FOUND,
+                ProblemTypes.SCENARIO_RUN_NOT_FOUND,
+                "Scenario run not found",
+                e.getMessage(),
+                request);
+    }
+
+    /** Retry-After: a run takes a few seconds, so a slot is usually free again soon. */
+    @ExceptionHandler(ChaosExceptions.CapacityExceeded.class)
+    ResponseEntity<ProblemDetail> tooManyRuns(ChaosExceptions.CapacityExceeded e, HttpServletRequest request) {
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header(HttpHeaders.RETRY_AFTER, "5")
+                .body(problem(
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        ProblemTypes.TOO_MANY_SCENARIO_RUNS,
+                        "Too many scenario runs",
+                        e.getMessage(),
+                        request));
+    }
+
+    @ExceptionHandler(ChaosExceptions.Unavailable.class)
+    ResponseEntity<ProblemDetail> chaosUnavailable(ChaosExceptions.Unavailable e, HttpServletRequest request) {
+        return respond(
+                HttpStatus.SERVICE_UNAVAILABLE,
+                ProblemTypes.CHAOS_UNAVAILABLE,
+                "Scenario unavailable",
+                e.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(DemoAdminController.ResetInProgressException.class)
+    ResponseEntity<ProblemDetail> resetInProgress(
+            DemoAdminController.ResetInProgressException e, HttpServletRequest request) {
+        return respond(
+                HttpStatus.CONFLICT, ProblemTypes.RESET_IN_PROGRESS, "Reset in progress", e.getMessage(), request);
     }
 
     @ExceptionHandler(OutboxMessageNotFoundException.class)

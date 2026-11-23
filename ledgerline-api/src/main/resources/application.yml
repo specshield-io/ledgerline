@@ -108,6 +108,28 @@ ledgerline:
     sink:
       # The built-in demo merchant at /demo/merchant-sink. Off unless a profile enables it.
       enabled: false
+  rate-limit:
+    # Per client IP, in memory, per instance. 429 + Retry-After when exceeded.
+    enabled: true
+    public-per-minute: 60
+    chaos-per-minute: 10
+    # CIDRs of our own reverse proxies; X-Forwarded-For is trusted only from them. Empty: use the TCP peer address.
+    trusted-proxies: []
+  chaos:
+    max-concurrent-runs: 3
+    merchant-outage: 2m
+    merchant-slow-delay: 10s
+    await-timeout: 15s
+  demo:
+    seed-on-startup: true
+    # Wipe and reseed the demo data (UTC). "-" disables it.
+    reset-cron: "0 0 3 * * *"
+    data-resets-at: "03:00 UTC"
+    # Set by the image build (Dockerfile ARG GIT_SHA); "unknown" otherwise.
+    git-sha: ${LEDGERLINE_GIT_SHA:unknown}
+  security:
+    cors-allowed-origins:
+      - "https://www.specshield.example"
 
 info:
   app:
@@ -143,6 +165,20 @@ ledgerline:
       enabled: true
       secrets:
         - "local-dev-only-merchant-signing-secret-0001"
+  security:
+    # Local development only: synthetic accounts. Passwords: local-dev-only-admin-password and
+    # local-dev-only-viewer-password. Never use these hashes anywhere else.
+    users:
+      - username: local-admin
+        password-hash: "$2a$10$KvYxBa2sOjaup3EsPUpm5OrLWPQ1f44bMJLb9w..OS3Ag82yDfpPW"
+        role: ADMIN
+      - username: local-viewer
+        password-hash: "$2a$10$pdKyhonCpn0d.qyIxsA81.Q9/tWl4gpuOFZ.mFrtuaKvJtVJ/Ewuu"
+        role: VIEWER
+    cors-allowed-origins:
+      - "https://www.specshield.example"
+      - "http://localhost:5173"
+      - "http://localhost:3000"
 
 ---
 spring:
@@ -181,6 +217,26 @@ ledgerline:
       enabled: true
       secrets:
         - "test-only-merchant-signing-secret-current-0001"
+  rate-limit:
+    # Off for the shared test context (hundreds of requests from 127.0.0.1); RateLimitIT turns it on.
+    enabled: false
+  demo:
+    # Tests seed and reset explicitly.
+    seed-on-startup: false
+    reset-cron: "-"
+  security:
+    # Synthetic test accounts (BCrypt cost 4 keeps tests fast). Passwords: test-only-admin-password-0001 and
+    # test-only-viewer-password-0001.
+    users:
+      - username: test-admin
+        password-hash: "$2a$04$XL2.pLb4cJjro19RvoWyBeuzUhvhccUemPA9DEm7C8Kd4lB7CYJ8G"
+        role: ADMIN
+      - username: test-viewer
+        password-hash: "$2a$04$.h08N2jWn3utEZVhuhaTf.PEHKzYJNkT9qgnNifLF3hH3oG0D5jq6"
+        role: VIEWER
+    cors-allowed-origins:
+      - "https://www.specshield.example"
+      - "http://localhost:5173"
 logging:
   level:
     # Negative tests violate constraints on purpose; Hibernate would log each expected SQL error at WARN.
@@ -209,3 +265,16 @@ ledgerline:
     # Required, no defaults: startup fails without them.
     url: ${LEDGERLINE_MERCHANT_URL}
     signing-secrets: ${LEDGERLINE_MERCHANT_SIGNING_SECRETS}
+  security:
+    # BCrypt hashes only, never passwords. The ADMIN account is required (startup fails without it); the VIEWER
+    # account is optional (blank hash = no viewer).
+    users:
+      - username: ${LEDGERLINE_ADMIN_USERNAME}
+        password-hash: ${LEDGERLINE_ADMIN_PASSWORD_HASH}
+        role: ADMIN
+      - username: ${LEDGERLINE_VIEWER_USERNAME:viewer}
+        password-hash: ${LEDGERLINE_VIEWER_PASSWORD_HASH:}
+        role: VIEWER
+  rate-limit:
+    # Comma-separated CIDRs of the Fly.io / Cloudflare proxies in front of the app. Unset: X-Forwarded-For ignored.
+    trusted-proxies: ${LEDGERLINE_TRUSTED_PROXIES:}

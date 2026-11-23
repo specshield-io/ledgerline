@@ -4,6 +4,8 @@ on:
   push:
     branches: [main]
   pull_request:
+    # labeled/unlabeled: adding or removing "api-break-approved" re-runs the OpenAPI check.
+    types: [opened, synchronize, reopened, labeled, unlabeled]
   workflow_dispatch:
 
 permissions:
@@ -44,11 +46,13 @@ jobs:
             exit 1
           fi
 
-      # LL-C01: fail the PR if the API breaks backward compatibility against the base branch.
+      # LL-C01: fail the PR if the API breaks backward compatibility against the base branch, unless a maintainer
+      # labelled the PR "api-break-approved" (AGENTS.md, API contract). The report is printed either way.
       - name: OpenAPI breaking-change check
         if: github.event_name == 'pull_request'
         env:
           BASE_REF: ${{ github.base_ref }}
+          BREAK_APPROVED: ${{ contains(github.event.pull_request.labels.*.name, 'api-break-approved') }}
         run: |
           git fetch --no-tags --depth=1 origin "$BASE_REF"
           if ! git cat-file -e FETCH_HEAD:docs/openapi.json 2>/dev/null; then
@@ -58,9 +62,17 @@ jobs:
           mkdir -p "$RUNNER_TEMP/openapi"
           git show FETCH_HEAD:docs/openapi.json > "$RUNNER_TEMP/openapi/base.json"
           cp docs/openapi.json "$RUNNER_TEMP/openapi/head.json"
-          docker run --rm -v "$RUNNER_TEMP/openapi:/specs:ro" \
+          if docker run --rm -v "$RUNNER_TEMP/openapi:/specs:ro" \
             openapitools/openapi-diff:2.1.7@sha256:82291446e5554742d9c0725d7b315d18e93958c5526f9a663e8885227bdd6cb6 \
-            /specs/base.json /specs/head.json --fail-on-incompatible
+            /specs/base.json /specs/head.json --fail-on-incompatible; then
+            exit 0
+          fi
+          if [ "$BREAK_APPROVED" = "true" ]; then
+            echo "::warning::Backward-incompatible API change, approved with the api-break-approved label."
+            exit 0
+          fi
+          echo "::error::Backward-incompatible API change. Add a new API version, or have a maintainer label the PR api-break-approved."
+          exit 1
 
       - name: Upload JaCoCo report
         if: always()

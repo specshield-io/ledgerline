@@ -34,6 +34,10 @@
         <jqwik.version>1.10.2</jqwik.version>
         <wiremock.version>3.13.2</wiremock.version>
         <rest-assured.version>6.3.0</rest-assured.version>
+        <!-- Rate limiting and the distributed lock for the nightly demo reset (A5). Released more than two weeks
+             before they were added (2026-11-24): bucket4j 8.22.0 on 2026-11-03, ShedLock 7.11.0 on 2026-11-07. -->
+        <bucket4j.version>8.22.0</bucket4j.version>
+        <shedlock.version>7.11.0</shedlock.version>
 
         <jacoco-plugin.version>0.8.16</jacoco-plugin.version>
         <pitest-plugin.version>1.30.2</pitest-plugin.version>
@@ -95,6 +99,29 @@
             <groupId>org.springdoc</groupId>
             <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
             <version>${springdoc.version}</version>
+        </dependency>
+        <!-- In-memory token buckets per client IP (public 60/min, chaos 10/min). -->
+        <dependency>
+            <groupId>com.bucket4j</groupId>
+            <artifactId>bucket4j_jdk17-core</artifactId>
+            <version>${bucket4j.version}</version>
+        </dependency>
+        <!-- Bounded, expiring map of buckets and chaos runs (version managed by Spring Boot). -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+        <!-- Database lock so the demo reset never runs twice at once across instances. Core + JDBC provider only;
+             no AOP integration needed. -->
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-core</artifactId>
+            <version>${shedlock.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>net.javacrumbs.shedlock</groupId>
+            <artifactId>shedlock-provider-jdbc-template</artifactId>
+            <version>${shedlock.version}</version>
         </dependency>
 
         <!-- Test -->
@@ -184,6 +211,14 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <executions>
+                    <!-- META-INF/build-info.properties: the version reported by GET /api/v1/meta. -->
+                    <execution>
+                        <goals>
+                            <goal>build-info</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!--

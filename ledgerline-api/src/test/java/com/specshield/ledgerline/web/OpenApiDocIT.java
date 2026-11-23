@@ -35,7 +35,12 @@ class OpenApiDocIT extends ApiTestSupport {
                         "/api/v1/orders/{id}/timeline",
                         "/webhooks/mockpay",
                         "/api/v1/admin/outbox",
-                        "/api/v1/admin/outbox/{id}/replay");
+                        "/api/v1/admin/outbox/{id}/replay",
+                        "/api/v1/admin/reset",
+                        "/api/v1/chaos/scenarios",
+                        "/api/v1/chaos/scenarios/{name}",
+                        "/api/v1/chaos/runs/{id}",
+                        "/api/v1/meta");
         List<Map<String, Object>> createParams =
                 given().get("/v3/api-docs").path("paths.'/api/v1/orders'.post.parameters");
         assertThat(createParams).anySatisfy(p -> {

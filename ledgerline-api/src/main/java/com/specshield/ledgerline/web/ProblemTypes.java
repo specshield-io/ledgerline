@@ -23,6 +23,8 @@ public final class ProblemTypes {
     public static final URI INVALID_PARAMETER = of("invalid-parameter");
     public static final URI PAYLOAD_TOO_LARGE = of("payload-too-large");
     public static final URI FORBIDDEN = of("forbidden");
+    public static final URI UNAUTHORIZED = of("unauthorized");
+    public static final URI RATE_LIMITED = of("rate-limited");
     public static final URI NOT_FOUND = of("not-found");
     public static final URI ORDER_NOT_FOUND = of("order-not-found");
     public static final URI METHOD_NOT_ALLOWED = of("method-not-allowed");
@@ -36,6 +38,11 @@ public final class ProblemTypes {
     public static final URI MALFORMED_EVENT = of("malformed-event");
     public static final URI OUTBOX_MESSAGE_NOT_FOUND = of("outbox-message-not-found");
     public static final URI OUTBOX_MESSAGE_NOT_REPLAYABLE = of("outbox-message-not-replayable");
+    public static final URI SCENARIO_NOT_FOUND = of("scenario-not-found");
+    public static final URI SCENARIO_RUN_NOT_FOUND = of("scenario-run-not-found");
+    public static final URI TOO_MANY_SCENARIO_RUNS = of("too-many-scenario-runs");
+    public static final URI CHAOS_UNAVAILABLE = of("chaos-unavailable");
+    public static final URI RESET_IN_PROGRESS = of("reset-in-progress");
     public static final URI INTERNAL_ERROR = of("internal-error");
 
     private ProblemTypes() {}
@@ -48,12 +55,14 @@ public final class ProblemTypes {
     static URI forStatus(int status) {
         return switch (status) {
             case 400 -> MALFORMED_REQUEST;
-            case 401, 403 -> FORBIDDEN;
+            case 401 -> UNAUTHORIZED;
+            case 403 -> FORBIDDEN;
             case 404 -> NOT_FOUND;
             case 405 -> METHOD_NOT_ALLOWED;
             case 406 -> NOT_ACCEPTABLE;
             case 413 -> PAYLOAD_TOO_LARGE;
             case 415 -> UNSUPPORTED_MEDIA_TYPE;
+            case 429 -> RATE_LIMITED;
             default -> status >= 500 ? INTERNAL_ERROR : of("http-" + status);
         };
     }

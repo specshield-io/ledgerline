@@ -304,7 +304,8 @@ class OutboxRelayIT extends ApiTestSupport {
         clock.advance(Duration.ofDays(1));
         assertThat(seeded.dispatchOnce()).as("DEAD rows are never picked up").isZero();
 
-        given().queryParam("status", "DEAD")
+        asViewer()
+                .queryParam("status", "DEAD")
                 .get("/api/v1/admin/outbox")
                 .then()
                 .statusCode(200)
@@ -314,7 +315,8 @@ class OutboxRelayIT extends ApiTestSupport {
                 .body("items[0].attempts", equalTo(8))
                 .body("items[0].eventType", equalTo("order.cancelled"))
                 .body("items[0].payload.status", equalTo("CANCELLED"));
-        given().queryParam("status", "PENDING")
+        asViewer()
+                .queryParam("status", "PENDING")
                 .get("/api/v1/admin/outbox")
                 .then()
                 .statusCode(200)
@@ -322,7 +324,7 @@ class OutboxRelayIT extends ApiTestSupport {
     }
 
     @Test
-    @DisplayName("LL-I16 replaying a DEAD row after the merchant recovers: DELIVERED, and the audit names the operator")
+    @DisplayName("LL-I16 replaying a DEAD row after the merchant recovers: DELIVERED, audit names the ADMIN user")
     void replayDead() {
         merchantAnswers(500);
         long id = cancelledOrderNotification();
@@ -331,8 +333,8 @@ class OutboxRelayIT extends ApiTestSupport {
         merchant.resetAll();
         merchantAnswers(200);
 
-        given().header(IdempotencyFilter.HEADER, "key-i16-replay")
-                .header(OutboxAdminController.OPERATOR_HEADER, "ops-oncall-1")
+        asAdmin()
+                .header(IdempotencyFilter.HEADER, "key-i16-replay")
                 .post("/api/v1/admin/outbox/" + id + "/replay")
                 .then()
                 .statusCode(200)
@@ -352,7 +354,7 @@ class OutboxRelayIT extends ApiTestSupport {
         Map<String, Object> audit =
                 jdbc.queryForMap("select order_id::text as order_id, actor, detail::text as detail from audit_log"
                         + " where kind = 'OUTBOX_REPLAYED'");
-        assertThat(audit.get("actor")).isEqualTo("operator:ops-oncall-1");
+        assertThat(audit.get("actor")).isEqualTo("operator:" + ADMIN_USER);
         assertThat(audit.get("order_id")).isEqualTo(delivered.aggregateId().toString());
         JsonNode detail = json.readTree((String) audit.get("detail"));
         assertThat(detail.get("outboxId").asLong()).isEqualTo(id);
@@ -366,32 +368,22 @@ class OutboxRelayIT extends ApiTestSupport {
         merchantAnswers(200);
         long id = cancelledOrderNotification();
 
-        given().header(IdempotencyFilter.HEADER, "key-i16-not-dead")
-                .header(OutboxAdminController.OPERATOR_HEADER, "ops-oncall-1")
+        asAdmin()
+                .header(IdempotencyFilter.HEADER, "key-i16-not-dead")
                 .post("/api/v1/admin/outbox/" + id + "/replay")
                 .then()
                 .statusCode(409)
                 .contentType("application/problem+json")
                 .body("type", equalTo("urn:ledgerline:problem:outbox-message-not-replayable"))
                 .body("currentStatus", equalTo("PENDING"));
-        given().header(IdempotencyFilter.HEADER, "key-i16-missing")
-                .header(OutboxAdminController.OPERATOR_HEADER, "ops-oncall-1")
+        asAdmin()
+                .header(IdempotencyFilter.HEADER, "key-i16-missing")
                 .post("/api/v1/admin/outbox/999999/replay")
                 .then()
                 .statusCode(404)
                 .body("type", equalTo("urn:ledgerline:problem:outbox-message-not-found"));
-        given().header(IdempotencyFilter.HEADER, "key-i16-no-operator")
-                .post("/api/v1/admin/outbox/" + id + "/replay")
-                .then()
-                .statusCode(400)
-                .body("type", equalTo("urn:ledgerline:problem:missing-request-header"));
-        given().header(IdempotencyFilter.HEADER, "key-i16-bad-operator")
-                .header(OutboxAdminController.OPERATOR_HEADER, "<script>")
-                .post("/api/v1/admin/outbox/" + id + "/replay")
-                .then()
-                .statusCode(400)
-                .body("type", equalTo("urn:ledgerline:problem:validation-error"));
-        given().queryParam("status", "LOST")
+        asViewer()
+                .queryParam("status", "LOST")
                 .get("/api/v1/admin/outbox")
                 .then()
                 .statusCode(400)
