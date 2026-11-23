@@ -8,6 +8,7 @@ import com.specshield.ledgerline.domain.Money;
 import com.specshield.ledgerline.domain.Order;
 import com.specshield.ledgerline.domain.OrderStatus;
 import jakarta.persistence.EntityManager;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.UUID;
 import org.junit.jupiter.api.DisplayName;
@@ -177,7 +178,7 @@ class PersistenceIT {
         audit.saveAndFlush(new AuditLogEntity(null, "WEBHOOK_REJECTED", "{}", "mockpay", null, T0));
         em.clear();
 
-        var entries = audit.findByOrderIdOrderByCreatedAtAsc(orderId);
+        var entries = audit.findByOrderIdOrderByCreatedAtAscIdAsc(orderId);
         assertThat(entries).extracting(AuditLogEntity::getKind).containsExactly("ORDER_CREATED", "PAYMENT_APPLIED");
         AuditLogEntity first = entries.getFirst();
         assertThat(first.getId()).isNotNull();
@@ -193,14 +194,16 @@ class PersistenceIT {
     void idempotencyKeys() {
         IdempotencyKeyEntity key = new IdempotencyKeyEntity("idem-1", "sha256:abc", T0, T0.plusSeconds(86_400));
         idempotencyKeys.saveAndFlush(key);
-        key.complete(201, "{\"id\":\"x\"}");
+        key.complete(201, "{\"id\":\"x\"}".getBytes(StandardCharsets.UTF_8), "application/json", "/api/v1/orders/x");
         idempotencyKeys.saveAndFlush(key);
         em.clear();
 
         IdempotencyKeyEntity found = idempotencyKeys.findById("idem-1").orElseThrow();
         assertThat(found.getState()).isEqualTo(IdempotencyState.COMPLETED);
         assertThat(found.getResponseStatus()).isEqualTo(201);
-        assertThat(found.getResponseBody()).contains("\"id\"");
+        assertThat(new String(found.getResponseBody(), StandardCharsets.UTF_8)).isEqualTo("{\"id\":\"x\"}");
+        assertThat(found.getResponseContentType()).isEqualTo("application/json");
+        assertThat(found.getResponseLocation()).isEqualTo("/api/v1/orders/x");
         assertThat(found.getRequestHash()).isEqualTo("sha256:abc");
         assertThat(found.getCreatedAt()).isEqualTo(T0);
         assertThat(found.getExpiresAt()).isEqualTo(T0.plusSeconds(86_400));

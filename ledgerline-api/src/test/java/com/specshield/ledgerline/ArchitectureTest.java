@@ -37,6 +37,19 @@ class ArchitectureTest {
     }
 
     @Test
+    @DisplayName("application depends on ports, not on web or persistence")
+    void applicationUsesPorts() {
+        noClasses()
+                .that()
+                .resideInAPackage(ROOT + ".application..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage(ROOT + ".web..", ROOT + ".persistence..", "jakarta.persistence..")
+                .because("persistence implements the application's ports (AGENTS.md)")
+                .check(productionClasses);
+    }
+
+    @Test
     @DisplayName("LL-A02 web classes do not depend on persistence")
     void webDoesNotReachIntoPersistence() {
         noClasses()

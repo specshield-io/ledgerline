@@ -214,6 +214,10 @@
                 <artifactId>maven-failsafe-plugin</artifactId>
                 <configuration>
                     <argLine>@{argLine} -javaagent:${org.mockito:mockito-core:jar}</argLine>
+                    <systemPropertyVariables>
+                        <!-- LL-C01 writes the generated OpenAPI document here; it is committed and diffed in CI. -->
+                        <ledgerline.openapi.output>${project.basedir}/../docs/openapi.json</ledgerline.openapi.output>
+                    </systemPropertyVariables>
                 </configuration>
                 <executions>
                     <execution>

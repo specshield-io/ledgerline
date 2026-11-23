@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 
@@ -23,6 +24,10 @@ public class InboxEventEntity {
 
     @Column(nullable = false, length = 64)
     private String provider;
+
+    /** The order the event belongs to, once known; null for orphans. */
+    @Column(name = "order_id")
+    private UUID orderId;
 
     @Column(name = "provider_event_id", nullable = false)
     private String providerEventId;
@@ -55,6 +60,17 @@ public class InboxEventEntity {
         this.receivedAt = receivedAt;
     }
 
+    public InboxEventEntity(
+            String provider,
+            String providerEventId,
+            UUID orderId,
+            String payload,
+            boolean signatureValid,
+            Instant receivedAt) {
+        this(provider, providerEventId, payload, signatureValid, receivedAt);
+        this.orderId = orderId;
+    }
+
     /** Records the processing result. */
     public void markProcessed(InboxOutcome outcome, Instant processedAt) {
         this.outcome = outcome;
@@ -63,6 +79,10 @@ public class InboxEventEntity {
 
     public Long getId() {
         return id;
+    }
+
+    public UUID getOrderId() {
+        return orderId;
     }
 
     public String getProvider() {
