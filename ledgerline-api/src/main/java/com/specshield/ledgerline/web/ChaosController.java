@@ -65,7 +65,13 @@ public class ChaosController {
             String description,
 
             @Schema(nullable = true, description = "The webhook receiver's answer, for deliveries")
-            Integer httpStatus) {}
+            Integer httpStatus,
+
+            @Schema(
+                    nullable = true,
+                    description = "The receiver's problem type for an error answer",
+                    example = "invalid-signature")
+            String result) {}
 
     @Schema(name = "ScenarioRun")
     public record RunResponse(
@@ -93,7 +99,7 @@ public class ChaosController {
                     run.orderStatusAtEnd(),
                     run.error(),
                     run.steps().stream()
-                            .map(s -> new StepResponse(s.at(), s.description(), s.httpStatus()))
+                            .map(s -> new StepResponse(s.at(), s.description(), s.httpStatus(), s.result()))
                             .toList());
         }
     }

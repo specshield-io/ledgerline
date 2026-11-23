@@ -5,6 +5,10 @@
 .idea/
 .vscode/
 *.iml
-ops-console/
+ops-console/node/
+ops-console/dist/
+ops-console/test-results/
+ops-console/playwright-report/
+ops-console/e2e/
 .env
 .env.*

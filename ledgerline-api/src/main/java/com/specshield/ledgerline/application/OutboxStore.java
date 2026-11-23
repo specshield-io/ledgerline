@@ -39,6 +39,9 @@ public interface OutboxStore {
     /** Newest first. */
     OutboxPage page(Optional<OutboxStatus> status, int page, int size);
 
+    /** Every row about one order (aggregate), oldest first. */
+    List<OutboxMessage> forAggregate(java.util.UUID aggregateId);
+
     /** Locks the row for the rest of the caller's transaction. */
     Optional<OutboxMessage> findByIdForUpdate(long id);
 

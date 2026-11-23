@@ -92,6 +92,31 @@ class SecurityIT extends ApiTestSupport {
     }
 
     @Test
+    @DisplayName("GET /api/v1/admin/me returns the signed-in user and roles")
+    void me() {
+        asViewer()
+                .get("/api/v1/admin/me")
+                .then()
+                .statusCode(200)
+                .body("username", equalTo(VIEWER_USER))
+                .body("roles", equalTo(java.util.List.of("VIEWER")));
+        asAdmin().get("/api/v1/admin/me").then().statusCode(200).body("roles", equalTo(java.util.List.of("ADMIN")));
+    }
+
+    @Test
+    @DisplayName("a script's 401 (X-Requested-With) carries no Basic challenge, so browsers show no login prompt")
+    void noChallengeForScripts() {
+        Response xhr = given().header("X-Requested-With", "XMLHttpRequest")
+                .auth()
+                .preemptive()
+                .basic(ADMIN_USER, "wrong")
+                .get("/api/v1/admin/me");
+        assertThat(xhr.statusCode()).isEqualTo(401);
+        assertThat(xhr.header("WWW-Authenticate")).isNull();
+        assertThat(xhr.<String>path("type")).isEqualTo("urn:ledgerline:problem:unauthorized");
+    }
+
+    @Test
     @DisplayName("Prometheus metrics need VIEWER or ADMIN")
     void prometheus() {
         given().get("/actuator/prometheus").then().statusCode(401);

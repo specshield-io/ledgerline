@@ -309,7 +309,7 @@ public class ChaosService {
             String description) {
         MockPayScripts.Delivery delivery =
                 provider.send(payment, provider.newEventId(), type, sequence, amountMinor, tamper, run.correlationId());
-        step(run, description, delivery.status());
+        step(run, description, delivery.status(), delivery.problem());
     }
 
     private void awaitStatus(ScenarioRun run, OrderStatus expected) throws InterruptedException {
@@ -328,13 +328,20 @@ public class ChaosService {
     }
 
     private void step(ScenarioRun run, String description, Integer httpStatus) {
-        run.step(new ScenarioRun.Step(clock.instant(), description, httpStatus));
+        step(run, description, httpStatus, null);
+    }
+
+    private void step(ScenarioRun run, String description, Integer httpStatus, String result) {
+        run.step(new ScenarioRun.Step(clock.instant(), description, httpStatus, result));
         Map<String, Object> detail = new LinkedHashMap<>();
         detail.put("scenarioRunId", run.id());
         detail.put("scenario", run.scenario().slug());
         detail.put("step", description);
         if (httpStatus != null) {
             detail.put("httpStatus", httpStatus);
+        }
+        if (result != null) {
+            detail.put("result", result);
         }
         audit.append(new AuditRecord(
                 null,

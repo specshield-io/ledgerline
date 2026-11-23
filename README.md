@@ -17,7 +17,7 @@ Ledgerline is a reliable order and payment event processing service. The goal is
 tests, how to process payment events correctly: idempotency, a transactional outbox, signed webhooks,
 retries and failure handling under chaos.
 
-**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, the hardened webhook receiver, signed merchant notifications through a transactional outbox, and a public chaos API with rate limiting, role-based admin access and self-resetting demo data. The operations console comes next.
+**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, the hardened webhook receiver, signed merchant notifications through a transactional outbox, a public chaos API with rate limiting, role-based admin access and self-resetting demo data, and the operations console that shows it all live.
 
 ## Stack
 
@@ -28,7 +28,8 @@ retries and failure handling under chaos.
 | Database | PostgreSQL 17, Flyway migrations |
 | API docs | springdoc-openapi 3.0.3 (`/v3/api-docs`, `/swagger-ui.html` outside `prod`) |
 | Observability | Actuator `health`, `info`, `prometheus` |
-| Tests | JUnit 6, Testcontainers 2, ArchUnit, jqwik, WireMock, REST Assured |
+| Console | React 19, TypeScript (strict), Vite 8, TanStack Query, React Router, Tailwind CSS 4, Radix UI, lucide |
+| Tests | JUnit 6, Testcontainers 2, ArchUnit, jqwik, WireMock, REST Assured; Vitest, Testing Library, MSW, Playwright, axe |
 | Quality | JaCoCo (gated), PIT (not gated yet), Spotless (palantir-java-format), CycloneDX SBOM |
 
 ## Getting started
@@ -54,6 +55,26 @@ export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 Profiles: `local` (default, PostgreSQL on localhost), `test` (Testcontainers), `prod` (all settings from
 environment variables `LEDGERLINE_DB_URL`, `LEDGERLINE_DB_USER`, `LEDGERLINE_DB_PASSWORD`, plus the secrets and
 accounts listed under [Security](#security)).
+
+## Operations console
+
+`docker compose up --build`, then open **http://localhost:8080**. The console runs the chaos scenarios and shows,
+live, what the service does with them:
+
+- **Scenarios** (left): the eight failure modes, each with what to watch for. A run opens its new order.
+- **Orders**: id, merchant reference, amount, status (text and icon, not colour alone), last update; filter by status.
+- **Order timeline**: inbox, audit log and outbox merged, labelled Received, Applied, Deduplicated, Stale (out of
+  order), Signature rejected, Notification queued, Retry scheduled (with the next attempt), Outbox delivered,
+  Dead-lettered. It refreshes every second while a scenario runs, every 5 s otherwise.
+- **Outbox** (sign in as VIEWER or ADMIN; local accounts in [Security](#security)): attempts, last error, next attempt;
+  ADMINs can replay dead letters after a confirmation.
+- **Metrics strip**: webhooks received, events applied, duplicates blocked, signatures rejected, outbox pending
+  (`GET /api/v1/stats`, the same meters as `/actuator/prometheus`, counted since the instance started).
+- **How it works**: the architecture diagram and links to the ADRs.
+
+Light and dark follow the system setting; it works with a keyboard and down to 360 px wide. Tests: Vitest unit tests
+(`LL-F01`..`LL-F05`) and Playwright end-to-end tests (`LL-E01`..`LL-E07`, including axe accessibility checks and phone
+screenshots) run in CI. Details in [ops-console/README.md](ops-console/README.md).
 
 ## Try it
 
@@ -250,7 +271,7 @@ outbox rather than dual-write, why no broker yet, and how to move to Kafka or SQ
 
 | Who | May use |
 |---|---|
-| Anyone (rate limited) | `GET/POST /api/v1/orders/**`, `/api/v1/chaos/**`, `/api/v1/meta`, `/actuator/health`, `/actuator/info`, `/v3/api-docs`, Swagger UI |
+| Anyone (rate limited) | the console (`/`, `/outbox`, `/assets/**`), `GET/POST /api/v1/orders/**`, `/api/v1/chaos/**`, `/api/v1/meta`, `/api/v1/stats`, `/actuator/health`, `/actuator/info`, `/v3/api-docs`, Swagger UI |
 | Signed callers | `POST /webhooks/mockpay` (MockPay HMAC), `/demo/merchant-sink` (Ledgerline HMAC) |
 | `VIEWER` (HTTP Basic) | `GET /api/v1/admin/**`, `/actuator/prometheus` |
 | `ADMIN` (HTTP Basic) | everything above, plus `POST /api/v1/admin/outbox/{id}/replay` and `POST /api/v1/admin/reset` |
@@ -263,8 +284,9 @@ problem+json.
   optionally `LEDGERLINE_VIEWER_USERNAME` and `LEDGERLINE_VIEWER_PASSWORD_HASH`. Make a hash with, for example,
   `htpasswd -nbBC 12 "" 'your-password' | cut -d: -f2`. The `local` and `test` profiles contain synthetic accounts
   whose passwords are written next to them in `application.yml`; they are not secrets.
-- **Rate limits** (Bucket4j, in memory, per instance, per client IP): 60 requests per minute to the API and its
-  documentation, 10 chaos scenario starts per minute. Over the limit: `429` problem+json with `Retry-After`.
+- **Rate limits** (Bucket4j, in memory, per instance, per client IP): 240 requests per minute to the API and its
+  documentation (the console polls; one visitor uses at most about 150 per minute), 10 chaos scenario starts per
+  minute. Over the limit: `429` problem+json with `Retry-After`.
   Webhooks are authenticated by signature and not limited. Limits apply before authentication, so floods with bogus
   credentials cost no BCrypt work. With N instances the effective limit is N times higher.
 - **Client IP.** `X-Forwarded-For` is trusted only when the TCP peer is in `LEDGERLINE_TRUSTED_PROXIES` (comma
@@ -326,7 +348,7 @@ with status). Hibernate only validates the schema.
 
 ```
 ledgerline-api/   Spring Boot service
-ops-console/      React operations console (later step)
+ops-console/      React operations console, built into the jar (see ops-console/README.md)
 ```
 
 ## Contributing

@@ -187,6 +187,23 @@ public class OrderController {
         return OrderResponse.from(orders.cancel(id));
     }
 
+    @GetMapping("/{id}/deliveries")
+    @Operation(summary = "Merchant notifications for an order and their delivery state, oldest first")
+    @ApiResponse(
+            responseCode = "200",
+            description = "The order's outbox rows",
+            content =
+                    @Content(
+                            mediaType = "application/json",
+                            array = @ArraySchema(schema = @Schema(implementation = DeliveryResponse.class))))
+    @ApiResponse(
+            responseCode = "404",
+            description = "Order not found",
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    List<DeliveryResponse> deliveries(@PathVariable UUID id) {
+        return orders.deliveries(id).stream().map(DeliveryResponse::from).toList();
+    }
+
     @GetMapping("/{id}/timeline")
     @Operation(summary = "Audit log and provider events for an order, oldest first")
     @ApiResponse(

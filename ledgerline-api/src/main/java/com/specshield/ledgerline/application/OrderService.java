@@ -35,6 +35,7 @@ public class OrderService {
     private final AuditTrail audit;
     private final PaymentGateway payments;
     private final MerchantNotifications notifications;
+    private final OutboxStore outbox;
     private final OrderStateMachine stateMachine;
     private final OrderIds ids;
     private final Clock clock;
@@ -46,6 +47,7 @@ public class OrderService {
             AuditTrail audit,
             PaymentGateway payments,
             MerchantNotifications notifications,
+            OutboxStore outbox,
             OrderStateMachine stateMachine,
             OrderIds ids,
             Clock clock,
@@ -55,6 +57,7 @@ public class OrderService {
         this.audit = audit;
         this.payments = payments;
         this.notifications = notifications;
+        this.outbox = outbox;
         this.stateMachine = stateMachine;
         this.ids = ids;
         this.clock = clock;
@@ -96,6 +99,13 @@ public class OrderService {
         audit(cancelled, "ORDER_CANCELLED", Map.of("from", order.status().name()));
         notifications.statusChanged(order.status(), cancelled, clock.instant());
         return cancelled;
+    }
+
+    /** The order's merchant notifications in the outbox, oldest first. */
+    @Transactional(readOnly = true)
+    public List<OutboxMessage> deliveries(UUID id) {
+        get(id);
+        return outbox.forAggregate(id);
     }
 
     /** Audit entries and inbox entries for the order, merged by time (oldest first). */

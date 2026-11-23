@@ -155,6 +155,14 @@ class ChaosIT extends ApiTestSupport {
         assertThat(status(run.orderId())).isEqualTo("PAYMENT_PENDING");
         assertThat(rejected("no_matching_signature")).isEqualTo(1);
         assertThat(deliveryStatuses(run.runId())).containsExactly(200, 400);
+        assertThat(runView(run.runId()).<List<String>>path("steps.result")).contains("invalid-signature");
+        assertThat(jdbc.queryForObject(
+                        "select count(*) from audit_log where order_id = ?::uuid and kind = 'CHAOS_STEP'"
+                                + " and detail->>'result' = 'invalid-signature'",
+                        Long.class,
+                        run.orderId()))
+                .as("the console labels this step Signature rejected")
+                .isEqualTo(1);
     }
 
     @Test
