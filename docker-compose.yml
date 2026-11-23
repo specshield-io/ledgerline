@@ -1,0 +1,50 @@
+# Local development stack: PostgreSQL 17 + Ledgerline API.
+# SpecShield Labs internal demonstration. Synthetic data only. Credentials below guard a throwaway local
+# database and are not secrets.
+# Host ports can be overridden if 5432/8080 are taken: LEDGERLINE_DB_PORT=15432 LEDGERLINE_HTTP_PORT=18080 docker compose up
+name: ledgerline
+
+services:
+  postgres:
+    image: postgres:17-alpine@sha256:f9cf3e1f0066f0eb0c48707d864f0ac5941e9ff454a072077d97a4d278d07d73
+    environment:
+      POSTGRES_DB: ledgerline
+      POSTGRES_USER: ledgerline
+      POSTGRES_PASSWORD: ledgerline
+    ports:
+      - "127.0.0.1:${LEDGERLINE_DB_PORT:-5432}:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ledgerline -d ledgerline"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ledgerline-api:local
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      LEDGERLINE_DB_URL: jdbc:postgresql://postgres:5432/ledgerline
+      LEDGERLINE_DB_USER: ledgerline
+      LEDGERLINE_DB_PASSWORD: ledgerline
+    ports:
+      - "127.0.0.1:${LEDGERLINE_HTTP_PORT:-8080}:8080"
+    stop_grace_period: 30s
+    healthcheck:
+      # The JRE image ships without curl; use bash's /dev/tcp to query the health endpoint.
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /actuator/health HTTP/1.0\\r\\nHost: localhost\\r\\n\\r\\n' >&3 && grep -q '\"status\":\"UP\"' <&3"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+volumes:
+  pgdata:
