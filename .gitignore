@@ -1,0 +1,42 @@
+# Build output
+target/
+!.mvn/wrapper/maven-wrapper.jar
+
+# IDEs
+.idea/
+*.iml
+.vscode/
+.classpath
+.project
+.settings/
+.factorypath
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Node (ops-console)
+node_modules/
+ops-console/dist/
+ops-console/build/
+npm-debug.log*
+
+# Secrets and local overrides: never commit
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.jks
+application-local-override.yml
+
+# Logs
+*.log
+logs/
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# jqwik example database
+.jqwik-database

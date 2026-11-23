@@ -1,0 +1,10 @@
+**/target/
+**/node_modules/
+.git/
+.github/
+.idea/
+.vscode/
+*.iml
+ops-console/
+.env
+.env.*

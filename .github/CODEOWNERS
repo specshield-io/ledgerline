@@ -1,0 +1,8 @@
+# Default owners for everything in the repository.
+# The team must exist in the specshield-labs organisation and have write access, or GitHub ignores this file.
+*                       @specshield-labs/ledgerline-maintainers
+
+# Supply chain and CI changes need a maintainer review.
+/.github/               @specshield-labs/ledgerline-maintainers
+/Dockerfile             @specshield-labs/ledgerline-maintainers
+/docker-compose.yml     @specshield-labs/ledgerline-maintainers

@@ -1,0 +1,94 @@
+# Ledgerline: SpecShield Labs internal demonstration. Synthetic data only.
+spring:
+  application:
+    name: ledgerline
+  profiles:
+    default: local
+  lifecycle:
+    timeout-per-shutdown-phase: 20s
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  mvc:
+    problemdetails:
+      enabled: true
+
+server:
+  shutdown: graceful
+  error:
+    include-stacktrace: never
+    include-message: never
+    include-binding-errors: never
+    include-exception: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+    jmx:
+      exposure:
+        exclude: "*"
+  endpoint:
+    health:
+      show-details: never
+      show-components: never
+      # Boot 4 enables liveness/readiness groups by default, which adds a "groups" key to the response.
+      # Keep the public body exactly {"status":"UP"}; re-enable when deploying to Kubernetes.
+      probes:
+        enabled: false
+  info:
+    env:
+      enabled: false
+
+springdoc:
+  # Set explicitly: springdoc warns at startup when these are left to their defaults.
+  api-docs:
+    enabled: true
+  swagger-ui:
+    enabled: true
+
+info:
+  app:
+    name: ledgerline
+    notice: SpecShield Labs internal demonstration. Synthetic data only.
+
+---
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    # Local development only. These credentials guard a throwaway container holding synthetic data.
+    url: ${LEDGERLINE_DB_URL:jdbc:postgresql://localhost:5432/ledgerline}
+    username: ${LEDGERLINE_DB_USER:ledgerline}
+    password: ${LEDGERLINE_DB_PASSWORD:ledgerline}
+
+---
+spring:
+  config:
+    activate:
+      on-profile: test
+# The datasource is provided by Testcontainers through @ServiceConnection. Never H2.
+
+---
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    # No defaults: the application must fail fast if these are missing.
+    url: ${LEDGERLINE_DB_URL}
+    username: ${LEDGERLINE_DB_USER}
+    password: ${LEDGERLINE_DB_PASSWORD}
+springdoc:
+  swagger-ui:
+    enabled: false
