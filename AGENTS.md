@@ -81,6 +81,18 @@ new error kind; never reuse one for a different meaning, because clients branch 
 - Design rationale: [ADR 0002](docs/adr/0002-webhook-signature-and-inbox.md). Record significant decisions as
   ADRs in `docs/adr/`.
 
+### Outbox and merchant notifications
+
+- A merchant notification is an `outbox` row written through `application.MerchantNotifications` **inside the
+  transaction that changes the order**. Never call a merchant (or any external system) from a request
+  transaction, and never write the row in a separate transaction.
+- Delivery is **at-least-once and unordered**. Receivers deduplicate by `Ledgerline-Event-Id` (the outbox id).
+  Do not promise exactly-once or ordered delivery in docs or code comments.
+- The relay (`outbox` package) talks to the database only through `application.OutboxStore` (ArchUnit rule).
+  Result updates are conditional on the claim (`status = 'IN_FLIGHT' AND claimed_at = ?`); keep them that way.
+- Backoff is `outbox.BackoffPolicy`: pure, with an injected `RandomGenerator`. Tests use a seeded generator.
+- Design rationale: [ADR 0003](docs/adr/0003-transactional-outbox.md).
+
 ## 5. Testing rules
 
 - **Every behaviour change ships with tests.** No exceptions for "small" changes.

@@ -14,6 +14,9 @@
     "description" : "This deployment"
   } ],
   "tags" : [ {
+    "description" : "Inspect merchant notifications and replay dead ones",
+    "name" : "Outbox administration"
+  }, {
     "description" : "Inbound provider webhooks (called by MockPay, not by clients)",
     "name" : "Webhooks"
   }, {
@@ -21,6 +24,177 @@
     "name" : "Orders"
   } ],
   "paths" : {
+    "/api/v1/admin/outbox" : {
+      "get" : {
+        "operationId" : "list_1",
+        "parameters" : [ {
+          "description" : "Only messages in this status",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "IN_FLIGHT", "DELIVERED", "DEAD" ]
+          }
+        }, {
+          "description" : "Zero-based page number",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "description" : "Page size, at most 100",
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OutboxPage"
+                }
+              }
+            },
+            "description" : "A page of outbox messages"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Invalid status, page or size"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "List outbox messages, newest first",
+        "tags" : [ "Outbox administration" ]
+      }
+    },
+    "/api/v1/admin/outbox/{id}/replay" : {
+      "post" : {
+        "description" : "Moves a DEAD message back to PENDING with its attempts reset; the dispatcher delivers it again. Writes an OUTBOX_REPLAYED audit row with actor operator:<X-Operator>.",
+        "operationId" : "replay",
+        "parameters" : [ {
+          "description" : "Unique key for this request (8-128 characters, [A-Za-z0-9_-])",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 128,
+            "minLength" : 8,
+            "pattern" : "[A-Za-z0-9_-]+"
+          }
+        }, {
+          "description" : "Who is replaying (1-64 characters, [A-Za-z0-9._@-]); recorded in the audit log",
+          "in" : "header",
+          "name" : "X-Operator",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "pattern" : "[A-Za-z0-9._@-]{1,64}"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int64"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OutboxMessage"
+                }
+              }
+            },
+            "description" : "The message, now PENDING (or the replayed response)"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Missing or invalid Idempotency-Key or X-Operator"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Outbox message not found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "The message is not DEAD, or a request with this key is in progress"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Idempotency-Key reused with a different request"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Replay a DEAD message",
+        "tags" : [ "Outbox administration" ]
+      }
+    },
     "/api/v1/orders" : {
       "get" : {
         "operationId" : "list",
@@ -604,6 +778,84 @@
             "type" : "array",
             "items" : {
               "$ref" : "#/components/schemas/Order"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "OutboxMessage" : {
+        "type" : "object",
+        "description" : "A merchant notification in the transactional outbox",
+        "properties" : {
+          "aggregateId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "The order the notification is about"
+          },
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Delivery attempts made so far"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deliveredAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "eventType" : {
+            "type" : "string",
+            "example" : "order.paid"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Outbox id; sent to the merchant as Ledgerline-Event-Id"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ],
+            "description" : "Error of the last failed attempt"
+          },
+          "nextAttemptAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "When the next attempt is due (PENDING)"
+          },
+          "payload" : {
+            "type" : "object",
+            "description" : "Notification data"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "IN_FLIGHT", "DELIVERED", "DEAD" ]
+          }
+        }
+      },
+      "OutboxPage" : {
+        "type" : "object",
+        "description" : "Outbox messages, newest first",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/OutboxMessage"
             }
           },
           "page" : {

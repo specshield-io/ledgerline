@@ -4,19 +4,24 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.specshield.ledgerline.PostgresContainerConfig;
+import com.specshield.ledgerline.application.OutboxMessage;
+import com.specshield.ledgerline.application.OutboxStatus;
 import com.specshield.ledgerline.domain.Money;
 import com.specshield.ledgerline.domain.Order;
 import com.specshield.ledgerline.domain.OrderStatus;
 import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;
+import java.util.List;
 import java.util.UUID;
+import javax.sql.DataSource;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.test.context.ActiveProfiles;
 
@@ -41,7 +46,7 @@ class PersistenceIT {
     IdempotencyKeyJpaRepository idempotencyKeys;
 
     @Autowired
-    OutboxMessageJpaRepository outbox;
+    DataSource dataSource;
 
     @Autowired
     EntityManager em;
@@ -216,30 +221,55 @@ class PersistenceIT {
     }
 
     @Test
-    @DisplayName("outbox messages start PENDING, are found when due, and record delivery")
+    @DisplayName("outbox rows start PENDING, are claimed only when due, and record a result only under their claim")
     void outbox() {
+        JdbcOutboxStore outbox = new JdbcOutboxStore(JdbcClient.create(dataSource));
         UUID aggregate = UUID.randomUUID();
-        OutboxMessageEntity due = outbox.saveAndFlush(new OutboxMessageEntity(aggregate, "OrderPaid", "{}", T0));
-        outbox.saveAndFlush(new OutboxMessageEntity(aggregate, "OrderRefunded", "{}", T0.plusSeconds(600)));
+        outbox.append(aggregate, "order.paid", "{\"status\":\"PAID\"}", T0);
+        outbox.append(aggregate, "order.refunded", "{}", T0.plusSeconds(600));
 
-        var ready = outbox.findTop100ByStatusAndNextAttemptAtLessThanEqualOrderByNextAttemptAtAsc(
-                OutboxStatus.PENDING, T0.plusSeconds(1));
-        assertThat(ready).extracting(OutboxMessageEntity::getId).containsExactly(due.getId());
+        List<OutboxMessage> claimed = outbox.claimDue(10, T0.plusSeconds(1));
+        assertThat(claimed).hasSize(1);
+        OutboxMessage due = claimed.getFirst();
+        assertThat(due.eventType()).isEqualTo("order.paid");
+        assertThat(due.status()).isEqualTo(OutboxStatus.IN_FLIGHT);
+        assertThat(due.claimedAt()).isEqualTo(T0.plusSeconds(1));
+        assertThat(due.aggregateId()).isEqualTo(aggregate);
+        assertThat(due.createdAt()).isEqualTo(T0);
+        assertThat(due.nextAttemptAt()).isEqualTo(T0);
+        assertThat(due.payloadJson()).isEqualTo("{\"status\": \"PAID\"}");
+        assertThat(outbox.claimDue(10, T0.plusSeconds(1))).as("already claimed").isEmpty();
 
-        due.markDelivered(T0.plusSeconds(2));
-        outbox.saveAndFlush(due);
-        em.clear();
+        assertThat(outbox.markDelivered(due.id(), T0, T0.plusSeconds(2)))
+                .as("someone else's claim")
+                .isFalse();
+        assertThat(outbox.markDelivered(due.id(), due.claimedAt(), T0.plusSeconds(2)))
+                .isTrue();
 
-        OutboxMessageEntity found = outbox.findById(due.getId()).orElseThrow();
-        assertThat(found.getStatus()).isEqualTo(OutboxStatus.DELIVERED);
-        assertThat(found.getAttempts()).isEqualTo(1);
-        assertThat(found.getDeliveredAt()).isEqualTo(T0.plusSeconds(2));
-        assertThat(found.getLastError()).isNull();
-        assertThat(found.getAggregateId()).isEqualTo(aggregate);
-        assertThat(found.getEventType()).isEqualTo("OrderPaid");
-        assertThat(found.getPayload()).isEqualTo("{}");
-        assertThat(found.getCreatedAt()).isEqualTo(T0);
-        assertThat(found.getNextAttemptAt()).isEqualTo(T0);
+        OutboxMessage found = outbox.findByIdForUpdate(due.id()).orElseThrow();
+        assertThat(found.status()).isEqualTo(OutboxStatus.DELIVERED);
+        assertThat(found.attempts()).isEqualTo(1);
+        assertThat(found.deliveredAt()).isEqualTo(T0.plusSeconds(2));
+        assertThat(found.claimedAt()).isNull();
+        assertThat(found.lastError()).isNull();
+    }
+
+    @Test
+    @DisplayName("outbox last_error is truncated to 500 characters, which the schema also enforces")
+    void outboxErrorTruncated() {
+        JdbcOutboxStore outbox = new JdbcOutboxStore(JdbcClient.create(dataSource));
+        outbox.append(UUID.randomUUID(), "order.paid", "{}", T0);
+        OutboxMessage claimed = outbox.claimDue(1, T0).getFirst();
+
+        assertThat(outbox.markRetry(claimed.id(), claimed.claimedAt(), "x".repeat(2_000), T0.plusSeconds(4)))
+                .isTrue();
+
+        OutboxMessage found = outbox.findByIdForUpdate(claimed.id()).orElseThrow();
+        assertThat(found.lastError()).hasSize(JdbcOutboxStore.MAX_ERROR_LENGTH);
+        assertThat(found.status()).isEqualTo(OutboxStatus.PENDING);
+        assertThat(found.attempts()).isEqualTo(1);
+        assertThat(found.nextAttemptAt()).isEqualTo(T0.plusSeconds(4));
+        assertThat(JdbcOutboxStore.truncate(null)).isNull();
     }
 
     @Test

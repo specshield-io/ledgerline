@@ -61,4 +61,17 @@ class ArchitectureTest {
                 .because("controllers go through the application layer, never repositories (AGENTS.md)")
                 .check(productionClasses);
     }
+
+    @Test
+    @DisplayName("the outbox relay works through application ports, not persistence or web")
+    void outboxUsesPorts() {
+        noClasses()
+                .that()
+                .resideInAPackage(ROOT + ".outbox..")
+                .should()
+                .dependOnClassesThat()
+                .resideInAnyPackage(ROOT + ".persistence..", ROOT + ".web..", "jakarta.persistence..")
+                .because("the relay reads and writes the outbox through application.OutboxStore (AGENTS.md)")
+                .check(productionClasses);
+    }
 }

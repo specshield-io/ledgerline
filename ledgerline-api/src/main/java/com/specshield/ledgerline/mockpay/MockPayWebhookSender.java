@@ -1,5 +1,6 @@
 package com.specshield.ledgerline.mockpay;
 
+import com.specshield.ledgerline.webhook.WebhookSigner;
 import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -19,12 +20,12 @@ final class MockPayWebhookSender {
     private static final Logger log = LoggerFactory.getLogger(MockPayWebhookSender.class);
 
     private final HttpClient http;
-    private final MockPaySigner signer;
+    private final WebhookSigner signer;
     private final Clock clock;
     private final int maxAttempts;
     private final Duration backoff;
 
-    MockPayWebhookSender(HttpClient http, MockPaySigner signer, Clock clock, int maxAttempts, Duration backoff) {
+    MockPayWebhookSender(HttpClient http, WebhookSigner signer, Clock clock, int maxAttempts, Duration backoff) {
         this.http = http;
         this.signer = signer;
         this.clock = clock;

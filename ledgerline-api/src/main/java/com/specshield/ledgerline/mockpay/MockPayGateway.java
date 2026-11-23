@@ -3,6 +3,7 @@ package com.specshield.ledgerline.mockpay;
 import com.specshield.ledgerline.application.PaymentGateway;
 import com.specshield.ledgerline.domain.Order;
 import com.specshield.ledgerline.domain.OrderStatus;
+import com.specshield.ledgerline.webhook.WebhookSigner;
 import jakarta.annotation.PreDestroy;
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -61,7 +62,7 @@ public class MockPayGateway implements PaymentGateway {
                 .build();
         this.sender = new MockPayWebhookSender(
                 http,
-                new MockPaySigner(properties.signingSecrets()),
+                new WebhookSigner(properties.signingSecrets()),
                 clock,
                 properties.maxDeliveryAttempts(),
                 properties.retryBackoff());

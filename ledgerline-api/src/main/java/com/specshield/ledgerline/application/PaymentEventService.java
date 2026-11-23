@@ -30,7 +30,8 @@ import tools.jackson.databind.json.JsonMapper;
  *   <li>unknown type: IGNORED; unknown order: ORPHAN (retried by the orphan reprocessor);
  *   <li>otherwise lock the order (SELECT ... FOR UPDATE) and apply all of its pending events in sequence order
  *       through {@link OrderEventSequencer}; events after a gap stay pending until the missing one arrives;
- *   <li>persist the order, every event's outcome, an audit row per event and an outbox row per applied change.
+ *   <li>persist the order, every event's outcome, an audit row per event and a merchant notification in the
+ *       outbox for each applied change that merchants are told about ({@link MerchantNotifications}).
  * </ol>
  *
  * <p>Any exception rolls the whole delivery back, including the inbox row, so the provider's retry is processed
@@ -44,7 +45,7 @@ public class PaymentEventService {
     private final PaymentInbox inbox;
     private final OrderStore orders;
     private final AuditTrail audit;
-    private final Outbox outbox;
+    private final MerchantNotifications notifications;
     private final OrderEventSequencer sequencer;
     private final ProviderEventDecoder decoder;
     private final PaymentEventHook hook;
@@ -55,7 +56,7 @@ public class PaymentEventService {
             PaymentInbox inbox,
             OrderStore orders,
             AuditTrail audit,
-            Outbox outbox,
+            MerchantNotifications notifications,
             OrderEventSequencer sequencer,
             ProviderEventDecoder decoder,
             PaymentEventHook hook,
@@ -64,7 +65,7 @@ public class PaymentEventService {
         this.inbox = inbox;
         this.orders = orders;
         this.audit = audit;
-        this.outbox = outbox;
+        this.notifications = notifications;
         this.sequencer = sequencer;
         this.decoder = decoder;
         this.hook = hook;
@@ -163,7 +164,7 @@ public class PaymentEventService {
             switch (step.transition()) {
                 case Transition.Applied a -> {
                     detail.put("to", a.newStatus().name());
-                    outbox.append(order.id(), "order.status_changed", json.writeValueAsString(detail), now);
+                    notifications.statusChanged(before, a.order(), now);
                     before = a.newStatus();
                     applied++;
                 }

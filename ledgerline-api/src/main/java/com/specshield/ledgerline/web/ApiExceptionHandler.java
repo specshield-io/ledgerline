@@ -2,6 +2,8 @@ package com.specshield.ledgerline.web;
 
 import com.specshield.ledgerline.application.OrderNotFoundException;
 import com.specshield.ledgerline.application.OrderService;
+import com.specshield.ledgerline.application.OutboxMessageNotFoundException;
+import com.specshield.ledgerline.application.OutboxMessageNotReplayableException;
 import com.specshield.ledgerline.domain.IllegalTransitionException;
 import jakarta.servlet.http.HttpServletRequest;
 import java.net.URI;
@@ -41,6 +43,29 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
     @ExceptionHandler(OrderNotFoundException.class)
     ResponseEntity<ProblemDetail> orderNotFound(OrderNotFoundException e, HttpServletRequest request) {
         return respond(HttpStatus.NOT_FOUND, ProblemTypes.ORDER_NOT_FOUND, "Order not found", e.getMessage(), request);
+    }
+
+    @ExceptionHandler(OutboxMessageNotFoundException.class)
+    ResponseEntity<ProblemDetail> outboxMessageNotFound(OutboxMessageNotFoundException e, HttpServletRequest request) {
+        return respond(
+                HttpStatus.NOT_FOUND,
+                ProblemTypes.OUTBOX_MESSAGE_NOT_FOUND,
+                "Outbox message not found",
+                e.getMessage(),
+                request);
+    }
+
+    @ExceptionHandler(OutboxMessageNotReplayableException.class)
+    ResponseEntity<ProblemDetail> outboxMessageNotReplayable(
+            OutboxMessageNotReplayableException e, HttpServletRequest request) {
+        ProblemDetail problem = problem(
+                HttpStatus.CONFLICT,
+                ProblemTypes.OUTBOX_MESSAGE_NOT_REPLAYABLE,
+                "Outbox message not replayable",
+                e.getMessage(),
+                request);
+        problem.setProperty("currentStatus", e.status().name());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
     }
 
     @ExceptionHandler(IllegalTransitionException.class)
