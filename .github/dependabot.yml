@@ -1,4 +1,7 @@
 version: 2
+# Ledgerline pins a deliberate stack (AGENTS.md): Spring Boot 4.0.x, springdoc 3.0.x (the Boot 4.0 line),
+# PostgreSQL 17 and Java 25 LTS. Dependabot proposes patch updates inside those lines only; moving to a
+# new minor/major line is a deliberate, reviewed change, not an automated bump.
 updates:
   - package-ecosystem: maven
     directory: "/"
@@ -8,6 +11,11 @@ updates:
     groups:
       spring-boot:
         patterns: ["org.springframework.boot:*"]
+    ignore:
+      - dependency-name: "org.springframework.boot:*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+      - dependency-name: "org.springdoc:*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
   # ops-console has no package.json yet (created in a later step). Until then Dependabot reports
   # "dependency file not found" for this entry; that is expected.
@@ -25,8 +33,14 @@ updates:
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "eclipse-temurin"
+        update-types: ["version-update:semver-major"]
 
   - package-ecosystem: docker-compose
     directory: "/"
     schedule:
       interval: weekly
+    ignore:
+      - dependency-name: "postgres"
+        update-types: ["version-update:semver-major"]
