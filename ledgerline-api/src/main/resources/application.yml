@@ -78,6 +78,11 @@ spring:
     activate:
       on-profile: test
 # The datasource is provided by Testcontainers through @ServiceConnection. Never H2.
+logging:
+  level:
+    # Negative tests violate constraints on purpose; Hibernate would log each expected SQL error at WARN.
+    # The tests assert the exception and constraint name instead. Other profiles keep these warnings.
+    org.hibernate.orm.jdbc.error: error
 
 ---
 spring:
