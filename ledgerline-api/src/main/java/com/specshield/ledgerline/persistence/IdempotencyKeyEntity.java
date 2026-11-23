@@ -10,8 +10,6 @@ import jakarta.persistence.PostPersist;
 import jakarta.persistence.Table;
 import jakarta.persistence.Transient;
 import java.time.Instant;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 import org.springframework.data.domain.Persistable;
 
 /**
@@ -32,9 +30,15 @@ public class IdempotencyKeyEntity implements Persistable<String> {
     @Column(name = "response_status")
     private Integer responseStatus;
 
-    @JdbcTypeCode(SqlTypes.JSON)
-    @Column(name = "response_body", columnDefinition = "jsonb")
-    private String responseBody;
+    /** Raw response bytes (bytea), replayed byte for byte. */
+    @Column(name = "response_body")
+    private byte[] responseBody;
+
+    @Column(name = "response_content_type")
+    private String responseContentType;
+
+    @Column(name = "response_location", length = 2048)
+    private String responseLocation;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)
@@ -61,9 +65,11 @@ public class IdempotencyKeyEntity implements Persistable<String> {
         this.isNew = true;
     }
 
-    public void complete(int responseStatus, String responseBody) {
+    public void complete(int responseStatus, byte[] responseBody, String contentType, String location) {
         this.responseStatus = responseStatus;
         this.responseBody = responseBody;
+        this.responseContentType = contentType;
+        this.responseLocation = location;
         this.state = IdempotencyState.COMPLETED;
     }
 
@@ -91,8 +97,16 @@ public class IdempotencyKeyEntity implements Persistable<String> {
         return responseStatus;
     }
 
-    public String getResponseBody() {
+    public byte[] getResponseBody() {
         return responseBody;
+    }
+
+    public String getResponseContentType() {
+        return responseContentType;
+    }
+
+    public String getResponseLocation() {
+        return responseLocation;
     }
 
     public IdempotencyState getState() {

@@ -1,0 +1,648 @@
+{
+  "openapi" : "3.1.0",
+  "info" : {
+    "description" : "Order and payment event processing. SpecShield Labs internal demonstration: synthetic data only, not a production payment system, not PCI DSS scoped.\n\nState-changing POST requests require an `Idempotency-Key` header (8-128 characters, `[A-Za-z0-9_-]`). Repeating a request with the same key and body replays the stored response with `Idempotent-Replayed: true`. Every error is RFC 9457 `application/problem+json`.",
+    "license" : {
+      "name" : "Apache-2.0",
+      "url" : "https://www.apache.org/licenses/LICENSE-2.0"
+    },
+    "title" : "Ledgerline API",
+    "version" : "v1"
+  },
+  "servers" : [ {
+    "url" : "/",
+    "description" : "This deployment"
+  } ],
+  "tags" : [ {
+    "description" : "Create, read, pay and cancel orders",
+    "name" : "Orders"
+  } ],
+  "paths" : {
+    "/api/v1/orders" : {
+      "get" : {
+        "operationId" : "list",
+        "parameters" : [ {
+          "description" : "Only orders in this status",
+          "in" : "query",
+          "name" : "status",
+          "required" : false,
+          "schema" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "PAYMENT_PENDING", "PAID", "PAYMENT_FAILED", "PARTIALLY_REFUNDED", "REFUNDED", "CANCELLED" ]
+          }
+        }, {
+          "description" : "Zero-based page number",
+          "in" : "query",
+          "name" : "page",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 0,
+            "minimum" : 0
+          }
+        }, {
+          "description" : "Page size, at most 100",
+          "in" : "query",
+          "name" : "size",
+          "required" : false,
+          "schema" : {
+            "type" : "integer",
+            "format" : "int32",
+            "default" : 20,
+            "maximum" : 100,
+            "minimum" : 1
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/OrderPage"
+                }
+              }
+            },
+            "description" : "A page of orders"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Invalid status, page or size"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "List orders, newest first",
+        "tags" : [ "Orders" ]
+      },
+      "post" : {
+        "operationId" : "create",
+        "parameters" : [ {
+          "description" : "Unique key for this request (8-128 characters, [A-Za-z0-9_-]). Repeating the same request with the same key replays the stored response; the same key with a different request returns 422. Keys expire after 24 hours.",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 128,
+            "minLength" : 8,
+            "pattern" : "[A-Za-z0-9_-]+"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "$ref" : "#/components/schemas/CreateOrderRequest"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "201" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Order"
+                }
+              }
+            },
+            "description" : "Created (or replayed)",
+            "headers" : {
+              "Idempotent-Replayed" : {
+                "description" : "true when replayed",
+                "schema" : {
+                  "type" : "string"
+                },
+                "style" : "simple"
+              },
+              "Location" : {
+                "description" : "URL of the new order",
+                "schema" : {
+                  "type" : "string"
+                },
+                "style" : "simple"
+              }
+            }
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Validation error, missing or invalid Idempotency-Key"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "A request with this Idempotency-Key is in progress (Retry-After: 1)"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Idempotency-Key reused with a different request"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Create an order",
+        "tags" : [ "Orders" ]
+      }
+    },
+    "/api/v1/orders/{id}" : {
+      "get" : {
+        "operationId" : "get",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Order"
+                }
+              }
+            },
+            "description" : "The order"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Order not found"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Get an order",
+        "tags" : [ "Orders" ]
+      }
+    },
+    "/api/v1/orders/{id}/cancel" : {
+      "post" : {
+        "description" : "Only CREATED orders can be cancelled.",
+        "operationId" : "cancel",
+        "parameters" : [ {
+          "description" : "Unique key for this request (8-128 characters, [A-Za-z0-9_-]). Repeating the same request with the same key replays the stored response; the same key with a different request returns 422. Keys expire after 24 hours.",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 128,
+            "minLength" : 8,
+            "pattern" : "[A-Za-z0-9_-]+"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Order"
+                }
+              }
+            },
+            "description" : "The cancelled order (or the replayed response)"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Order not found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Order not cancellable in its state, concurrent change, or request in progress"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Idempotency-Key reused with a different request"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Cancel an order",
+        "tags" : [ "Orders" ]
+      }
+    },
+    "/api/v1/orders/{id}/pay" : {
+      "post" : {
+        "description" : "Allowed for CREATED and PAYMENT_FAILED orders. The status changes later, when MockPay reports payment events.",
+        "operationId" : "pay",
+        "parameters" : [ {
+          "description" : "Unique key for this request (8-128 characters, [A-Za-z0-9_-]). Repeating the same request with the same key replays the stored response; the same key with a different request returns 422. Keys expire after 24 hours.",
+          "in" : "header",
+          "name" : "Idempotency-Key",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "maxLength" : 128,
+            "minLength" : 8,
+            "pattern" : "[A-Za-z0-9_-]+"
+          }
+        }, {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "202" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/PaymentRequest"
+                }
+              }
+            },
+            "description" : "Accepted"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Order not found"
+          },
+          "409" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Order not payable in its state, or request with this key in progress"
+          },
+          "422" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Idempotency-Key reused with a different request"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Ask MockPay to start a payment",
+        "tags" : [ "Orders" ]
+      }
+    },
+    "/api/v1/orders/{id}/timeline" : {
+      "get" : {
+        "operationId" : "timeline",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/TimelineEntry"
+                  }
+                }
+              }
+            },
+            "description" : "Timeline entries, oldest first"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Order not found"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Audit log and provider events for an order, oldest first",
+        "tags" : [ "Orders" ]
+      }
+    }
+  },
+  "components" : {
+    "schemas" : {
+      "CreateOrderRequest" : {
+        "type" : "object",
+        "description" : "A new order. Synthetic data only.",
+        "properties" : {
+          "amountMinor" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Amount in minor units (cents)",
+            "example" : 2599,
+            "maximum" : 100000000,
+            "minimum" : 1
+          },
+          "currency" : {
+            "type" : "string",
+            "description" : "ISO 4217 currency; only USD is supported",
+            "enum" : [ "USD" ],
+            "example" : "USD",
+            "pattern" : "USD"
+          },
+          "merchantRef" : {
+            "type" : "string",
+            "description" : "Merchant's own reference for the order",
+            "example" : "synthetic-order-1001",
+            "maxLength" : 64,
+            "minLength" : 0
+          }
+        },
+        "required" : [ "amountMinor", "currency", "merchantRef" ]
+      },
+      "Order" : {
+        "type" : "object",
+        "properties" : {
+          "amountMinor" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Amount in minor units (cents)"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "currency" : {
+            "type" : "string"
+          },
+          "id" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "lastProviderEventAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time",
+            "description" : "Provider timestamp of the last applied payment event"
+          },
+          "merchantRef" : {
+            "type" : "string"
+          },
+          "refundedMinor" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Refunded so far, in minor units"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "CREATED", "PAYMENT_PENDING", "PAID", "PAYMENT_FAILED", "PARTIALLY_REFUNDED", "REFUNDED", "CANCELLED" ]
+          },
+          "updatedAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "version" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Optimistic-locking version; increases on every change"
+          }
+        }
+      },
+      "OrderPage" : {
+        "type" : "object",
+        "description" : "Orders, newest first",
+        "properties" : {
+          "items" : {
+            "type" : "array",
+            "items" : {
+              "$ref" : "#/components/schemas/Order"
+            }
+          },
+          "page" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "size" : {
+            "type" : "integer",
+            "format" : "int32"
+          },
+          "totalElements" : {
+            "type" : "integer",
+            "format" : "int64"
+          },
+          "totalPages" : {
+            "type" : "integer",
+            "format" : "int32"
+          }
+        }
+      },
+      "PaymentRequest" : {
+        "type" : "object",
+        "description" : "The payment was requested from MockPay. The order status changes when MockPay reports events.",
+        "properties" : {
+          "orderId" : {
+            "type" : "string",
+            "format" : "uuid"
+          },
+          "paymentReference" : {
+            "type" : "string",
+            "description" : "MockPay's reference for the payment",
+            "example" : "mp_stub_0194a1b2-..."
+          },
+          "status" : {
+            "type" : "string",
+            "description" : "Order status at the time of the request (unchanged by it)",
+            "enum" : [ "CREATED", "PAYMENT_PENDING", "PAID", "PAYMENT_FAILED", "PARTIALLY_REFUNDED", "REFUNDED", "CANCELLED" ]
+          }
+        }
+      },
+      "Problem" : {
+        "type" : "object",
+        "additionalProperties" : true,
+        "description" : "RFC 9457 problem details. Branch on `type`, never on `title` or `detail`.",
+        "properties" : {
+          "correlationId" : {
+            "type" : "string",
+            "format" : "uuid",
+            "description" : "Echo of X-Request-Id"
+          },
+          "detail" : {
+            "type" : "string"
+          },
+          "instance" : {
+            "type" : "string",
+            "format" : "uri-reference"
+          },
+          "status" : {
+            "type" : "integer",
+            "format" : "int32",
+            "example" : 404
+          },
+          "title" : {
+            "type" : "string",
+            "example" : "Order not found"
+          },
+          "type" : {
+            "type" : "string",
+            "format" : "uri",
+            "example" : "urn:ledgerline:problem:order-not-found"
+          }
+        },
+        "required" : [ "type", "title", "status", "detail", "instance" ]
+      },
+      "TimelineEntry" : {
+        "type" : "object",
+        "description" : "An audit log entry or a provider event, ordered by time",
+        "properties" : {
+          "actor" : {
+            "type" : "string",
+            "description" : "Who acted: 'api' or the provider name"
+          },
+          "at" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "correlationId" : {
+            "type" : [ "string", "null" ]
+          },
+          "detail" : {
+            "type" : "object",
+            "description" : "Audit detail or provider payload"
+          },
+          "kind" : {
+            "type" : "string",
+            "description" : "Audit kind, e.g. ORDER_CREATED, or PROVIDER_EVENT",
+            "example" : "ORDER_CREATED"
+          },
+          "outcome" : {
+            "type" : [ "string", "null" ],
+            "description" : "Inbox processing outcome"
+          },
+          "providerEventId" : {
+            "type" : [ "string", "null" ]
+          },
+          "source" : {
+            "type" : "string",
+            "description" : "AUDIT (our own commands) or INBOX (provider events)",
+            "enum" : [ "AUDIT", "INBOX" ]
+          }
+        }
+      }
+    }
+  }
+}

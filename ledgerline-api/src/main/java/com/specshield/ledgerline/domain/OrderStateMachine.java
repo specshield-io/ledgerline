@@ -78,6 +78,21 @@ public final class OrderStateMachine {
         };
     }
 
+    /**
+     * Checks that a payment may be requested: the order is CREATED, or PAYMENT_FAILED (the customer retries). Asking
+     * for a payment does not change state; the provider reports progress through events.
+     */
+    public void requirePayable(Order order) {
+        OrderStatus from = order.status();
+        if (from != CREATED && from != PAYMENT_FAILED) {
+            throw illegal(
+                    from,
+                    PAYMENT_PENDING,
+                    "pay()",
+                    "payment can only be requested for a CREATED or PAYMENT_FAILED order");
+        }
+    }
+
     /** CREATED to CANCELLED. Any other state throws {@link IllegalTransitionException}. */
     public Order cancel(Order order) {
         if (order.status() != CREATED) {

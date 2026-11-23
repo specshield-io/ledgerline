@@ -55,6 +55,24 @@ springdoc:
     enabled: true
   swagger-ui:
     enabled: true
+  # Deterministic output, so the committed docs/openapi.json only changes when the API does.
+  writer-with-order-by-keys: true
+  writer-with-default-pretty-printer: true
+  default-produces-media-type: application/json
+
+logging:
+  level:
+    # Spring logs every client 405/404-for-handler at WARN here. Client mistakes are not server warnings;
+    # they are visible in the request log line and the problem response.
+    org.springframework.web.servlet.PageNotFound: error
+  pattern:
+    # Every log line carries the request's correlation id (X-Request-Id), set by CorrelationIdFilter.
+    correlation: "[%X{correlationId:-}] "
+
+ledgerline:
+  idempotency:
+    # Hourly purge of expired idempotency keys (UTC). "-" disables it.
+    cleanup-cron: "0 0 * * * *"
 
 info:
   app:
@@ -78,6 +96,10 @@ spring:
     activate:
       on-profile: test
 # The datasource is provided by Testcontainers through @ServiceConnection. Never H2.
+ledgerline:
+  idempotency:
+    # Tests run the cleanup job explicitly, with a controllable clock.
+    cleanup-cron: "-"
 logging:
   level:
     # Negative tests violate constraints on purpose; Hibernate would log each expected SQL error at WARN.

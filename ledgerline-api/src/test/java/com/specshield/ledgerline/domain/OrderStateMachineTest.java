@@ -147,6 +147,26 @@ class OrderStateMachineTest {
     }
 
     @Test
+    @DisplayName("a payment may be requested for CREATED and PAYMENT_FAILED orders only")
+    void requirePayable() {
+        machine.requirePayable(newOrder());
+        machine.requirePayable(orderIn(OrderStatus.PAYMENT_FAILED, 0, 2));
+        for (OrderStatus status : OrderStatus.values()) {
+            if (status == OrderStatus.CREATED || status == OrderStatus.PAYMENT_FAILED) {
+                continue;
+            }
+            long refunded = status == OrderStatus.PARTIALLY_REFUNDED ? 1 : status == OrderStatus.REFUNDED ? AMOUNT : 0;
+            Order order = orderIn(status, refunded, 1);
+            assertThatThrownBy(() -> machine.requirePayable(order))
+                    .as(status.name())
+                    .isInstanceOfSatisfying(IllegalTransitionException.class, e -> {
+                        assertThat(e.from()).isEqualTo(status);
+                        assertThat(e.event()).isEqualTo("pay()");
+                    });
+        }
+    }
+
+    @Test
     @DisplayName("events on a CANCELLED order are IGNORED, whatever their sequence")
     void cancelledIgnoresEvents() {
         Order cancelled = machine.cancel(newOrder());
