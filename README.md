@@ -17,7 +17,7 @@ Ledgerline is a reliable order and payment event processing service. The goal is
 tests, how to process payment events correctly: idempotency, a transactional outbox, signed webhooks,
 retries and failure handling under chaos.
 
-**Status:** domain model, database schema and the public orders REST API with idempotency. Provider event processing and the real MockPay integration come next (the payment call is a stub).
+**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, and the hardened webhook receiver. The outbox relay comes next.
 
 ## Stack
 
@@ -117,6 +117,46 @@ Every error is RFC 9457 `application/problem+json` with `type`, `title`, `status
 Send `X-Request-Id: <uuid>` to choose the correlation id (anything else is replaced by a generated UUID); it is
 echoed on the response, written to every log line of the request and stored on audit rows.
 
+## MockPay and webhooks
+
+MockPay is an in-process payment-provider **simulator** (`ledgerline.mockpay.enabled`, on in the `local`
+profile). It never contacts a real payment network. `POST /pay` records the payment in MockPay's own
+`mockpay_ledger` and, after the transaction commits, sends real HTTP webhooks from a virtual thread to
+`/webhooks/mockpay`: `PAYMENT_INITIATED` at once, then `PAYMENT_SUCCEEDED` (or `PAYMENT_FAILED`, see
+`ledgerline.mockpay.default-outcome`) after 300 to 800 ms. A 5xx or unreachable receiver is retried with
+exponential backoff.
+
+```json
+{"id":"evt_...","type":"PAYMENT_SUCCEEDED","created":1768471200,"sequence":2,
+ "data":{"orderId":"...","amountMinor":2599,"currency":"USD"}}
+```
+
+Each delivery is signed like Stripe's: `MockPay-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "t.body">`,
+with one `v1` per configured secret during rotation.
+
+The receiver verifies the raw bytes (constant-time compare, 300 s tolerance), stores the event in the inbox and,
+in the same transaction, locks the order and applies its pending events in sequence order. Responses:
+
+| Delivery | Response | Inbox outcome |
+|---|---|---|
+| Valid, applied (or waiting for an earlier event) | `200 {"received":true}` | `APPLIED` (or pending) |
+| Already stored | `200 {"received":true,"duplicate":true}` | unchanged |
+| Unknown event type | `200` | `IGNORED` |
+| Order not found yet | `200` | `ORPHAN`, retried every 30 s for 1 h |
+| Bad, expired or missing signature | `400` `invalid-signature` | `REJECTED` (synthetic id) |
+| Validly signed but not an event | `400` `malformed-event` | none |
+| Unexpected failure | `500`, everything rolled back | none (the provider retries) |
+
+Metrics (Prometheus): `ledgerline_webhook_received_total`, `_applied_total`, `_duplicates_total`,
+`_stale_total`, `_rejected_total{reason}`, `_failures_total`, and the timer `ledgerline_webhook_processing_seconds`.
+Every 5 minutes, reconciliation compares MockPay's ledger with order statuses and records differences as
+`RECONCILIATION_MISMATCH` audit rows. The design choices are in
+[ADR 0002](docs/adr/0002-webhook-signature-and-inbox.md).
+
+Configuration: `ledgerline.webhook.mockpay.secrets` (receiver; required, at least 32 characters each; in `prod`
+from `LEDGERLINE_MOCKPAY_WEBHOOK_SECRETS`, comma separated) and `ledgerline.mockpay.signing-secrets` (simulator).
+The values in `application.yml` are synthetic local and test values.
+
 ## Domain model
 
 All money is `long` minor units (cents) in `USD`; all times are UTC `Instant`s. The domain package
@@ -152,9 +192,9 @@ shuffled, and checks it reaches the same final status and refunded amount as the
 
 ## Database schema
 
-Flyway `V1__init.sql` and `V2__api_support.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
+Flyway `V1__init.sql`, `V2__api_support.sql` and `V3__mockpay_and_webhooks.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
 `provider, provider_event_id`; `order_id` for the timeline), `audit_log`, `idempotency_keys` (raw response bytes
-for exact replay), `outbox` (partial index on `next_attempt_at` where `status = 'PENDING'`).
+for exact replay), `mockpay_ledger` (the simulator's own record), `outbox` (partial index on `next_attempt_at` where `status = 'PENDING'`).
 Check constraints mirror the domain invariants (amount range, `USD`, status list, refunded amount consistent
 with status). Hibernate only validates the schema.
 

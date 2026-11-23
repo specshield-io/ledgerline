@@ -27,6 +27,8 @@ public class SecurityConfig {
     SecurityFilterChain securityFilterChain(HttpSecurity http, ProblemResponses problems) throws Exception {
         http.authorizeHttpRequests(auth -> auth.requestMatchers(
                                 "/api/v1/**",
+                                // Authenticated by the HMAC signature, not by Spring Security.
+                                "/webhooks/mockpay",
                                 "/actuator/health",
                                 "/actuator/health/**",
                                 "/actuator/info",

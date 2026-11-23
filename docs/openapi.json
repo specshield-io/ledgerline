@@ -14,6 +14,9 @@
     "description" : "This deployment"
   } ],
   "tags" : [ {
+    "description" : "Inbound provider webhooks (called by MockPay, not by clients)",
+    "name" : "Webhooks"
+  }, {
     "description" : "Create, read, pay and cancel orders",
     "name" : "Orders"
   } ],
@@ -443,6 +446,76 @@
         "summary" : "Audit log and provider events for an order, oldest first",
         "tags" : [ "Orders" ]
       }
+    },
+    "/webhooks/mockpay" : {
+      "post" : {
+        "description" : "Signed with MockPay-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of \"t.body\">. Duplicates are acknowledged with 200 and duplicate=true so the provider stops retrying.",
+        "operationId" : "receive",
+        "parameters" : [ {
+          "description" : "t=<unix seconds>,v1=<hex>[,v1=<hex>]",
+          "in" : "header",
+          "name" : "MockPay-Signature",
+          "required" : false,
+          "schema" : {
+            "type" : "string"
+          }
+        } ],
+        "requestBody" : {
+          "content" : {
+            "application/json" : {
+              "schema" : {
+                "type" : "string",
+                "format" : "byte"
+              }
+            }
+          },
+          "required" : true
+        },
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/WebhookAck"
+                }
+              }
+            },
+            "description" : "Received (applied, duplicate, ignored, orphan or waiting)"
+          },
+          "400" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "invalid-signature or malformed-event"
+          },
+          "500" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Processing failed and was rolled back; the provider should retry"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Receive a MockPay event",
+        "tags" : [ "Webhooks" ]
+      }
     }
   },
   "components" : {
@@ -640,6 +713,18 @@
             "type" : "string",
             "description" : "AUDIT (our own commands) or INBOX (provider events)",
             "enum" : [ "AUDIT", "INBOX" ]
+          }
+        }
+      },
+      "WebhookAck" : {
+        "type" : "object",
+        "properties" : {
+          "duplicate" : {
+            "type" : [ "boolean", "null" ],
+            "description" : "Present and true when the event was already stored"
+          },
+          "received" : {
+            "type" : "boolean"
           }
         }
       }
