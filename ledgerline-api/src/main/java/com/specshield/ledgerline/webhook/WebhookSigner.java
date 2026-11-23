@@ -1,4 +1,4 @@
-package com.specshield.ledgerline.mockpay;
+package com.specshield.ledgerline.webhook;
 
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
@@ -8,16 +8,17 @@ import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
 /**
- * Builds {@code MockPay-Signature: t=TIMESTAMP,v1=HEX[,v1=HEX]} with HEX = HMAC-SHA256(secret, TIMESTAMP + "." +
- * body), one v1 per configured secret (rotation). Deliberately independent of the receiver's verifier.
+ * Builds a signature header value {@code t=TIMESTAMP,v1=HEX[,v1=HEX]} with HEX = HMAC-SHA256(secret, TIMESTAMP + "." +
+ * body), one v1 per configured secret (rotation). Used by MockPay ({@code MockPay-Signature}) and by the outbox relay
+ * ({@code Ledgerline-Signature}). Deliberately independent of {@link WebhookSignatureVerifier}.
  */
-public final class MockPaySigner {
+public final class WebhookSigner {
 
     private final List<byte[]> secrets;
 
-    public MockPaySigner(List<String> secrets) {
+    public WebhookSigner(List<String> secrets) {
         if (secrets.isEmpty()) {
-            throw new IllegalArgumentException("MockPay needs at least one signing secret");
+            throw new IllegalArgumentException("at least one signing secret is required");
         }
         this.secrets =
                 secrets.stream().map(s -> s.getBytes(StandardCharsets.UTF_8)).toList();

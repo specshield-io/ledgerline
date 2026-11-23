@@ -17,7 +17,7 @@ Ledgerline is a reliable order and payment event processing service. The goal is
 tests, how to process payment events correctly: idempotency, a transactional outbox, signed webhooks,
 retries and failure handling under chaos.
 
-**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, and the hardened webhook receiver. The outbox relay comes next.
+**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, the hardened webhook receiver, and signed merchant notifications through a transactional outbox. Chaos experiments come next.
 
 ## Stack
 
@@ -157,6 +157,57 @@ Configuration: `ledgerline.webhook.mockpay.secrets` (receiver; required, at leas
 from `LEDGERLINE_MOCKPAY_WEBHOOK_SECRETS`, comma separated) and `ledgerline.mockpay.signing-secrets` (simulator).
 The values in `application.yml` are synthetic local and test values.
 
+## Merchant notifications (transactional outbox)
+
+When an order becomes `PAID`, `PAYMENT_FAILED`, `REFUNDED`, `PARTIALLY_REFUNDED` or `CANCELLED`, an `outbox` row
+is written **in the same transaction** as the change, so the notification exists if and only if the change
+commits. The relay (`outbox.OutboxDispatcher`, every 500 ms) claims up to 20 due rows with
+`FOR UPDATE SKIP LOCKED`, marks them `IN_FLIGHT`, and POSTs each to `ledgerline.merchant.url`:
+
+```
+POST <merchant url>
+Content-Type: application/json
+Ledgerline-Signature: t=1768471200,v1=<hex HMAC-SHA256 of "t.body">
+Ledgerline-Event-Id: 42
+Ledgerline-Delivery-Attempt: 1
+
+{"id":"42","type":"order.paid","createdAt":"2026-01-15T10:00:00Z",
+ "data":{"orderId":"...","merchantRef":"...","status":"PAID","previousStatus":"PAYMENT_PENDING",
+         "amountMinor":2599,"refundedMinor":0,"currency":"USD","occurredAt":"2026-01-15T10:00:00Z"}}
+```
+
+- **2xx**: `DELIVERED`. Anything else, or no response within 3 s (connect timeout 2 s): the attempt is counted,
+  `last_error` is stored, and the row is retried after an exponential backoff with full jitter (base 2 s, cap 1 h).
+  After 8 attempts the row is `DEAD`.
+- **At-least-once, unordered.** A row can be delivered more than once (crash recovery, lost acknowledgements), and
+  notifications for one order can arrive out of order. **Receivers must deduplicate by `Ledgerline-Event-Id`**
+  and use `status`/`occurredAt` rather than arrival order.
+- **Crash recovery.** A watchdog returns rows `IN_FLIGHT` for more than 60 s to `PENDING`.
+- **Verify the signature** on the raw body exactly as for MockPay webhooks, with the merchant secret
+  (`ledgerline.merchant.signing-secrets`; in `prod` from `LEDGERLINE_MERCHANT_SIGNING_SECRETS`, with the URL from
+  `LEDGERLINE_MERCHANT_URL`).
+
+Operator endpoints (unauthenticated in this demo; `X-Operator` is self-declared and recorded in the audit log):
+
+```bash
+# List, newest first; filter by PENDING, IN_FLIGHT, DELIVERED or DEAD
+curl -s 'localhost:8080/api/v1/admin/outbox?status=DEAD'
+# Send a DEAD message again (attempts reset; OUTBOX_REPLAYED audit row with actor operator:ops-oncall-1)
+curl -s -X POST localhost:8080/api/v1/admin/outbox/42/replay \
+  -H 'Idempotency-Key: replay-42-0001' -H 'X-Operator: ops-oncall-1'
+```
+
+In the `local` profile the notifications go to a built-in **demo merchant**, `POST /demo/merchant-sink`, which
+verifies the signature, deduplicates by event id and records what it received (`GET /demo/merchant-sink`). It can
+be switched to fail (500) or answer slowly; the HTTP switch arrives with the chaos API. It is off in `prod` and not
+part of the OpenAPI document.
+
+Metrics (Prometheus): `ledgerline_outbox_pending`, `ledgerline_outbox_oldest_pending_age_seconds`,
+`ledgerline_outbox_delivered_total`, `ledgerline_outbox_failed_total{reason}`, `ledgerline_outbox_dead_total`,
+`ledgerline_outbox_watchdog_released_total` and the timer `ledgerline_outbox_delivery_seconds{outcome}`. Why an
+outbox rather than dual-write, why no broker yet, and how to move to Kafka or SQS:
+[ADR 0003](docs/adr/0003-transactional-outbox.md).
+
 ## Domain model
 
 All money is `long` minor units (cents) in `USD`; all times are UTC `Instant`s. The domain package
@@ -192,9 +243,10 @@ shuffled, and checks it reaches the same final status and refunded amount as the
 
 ## Database schema
 
-Flyway `V1__init.sql`, `V2__api_support.sql` and `V3__mockpay_and_webhooks.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
+Flyway `V1__init.sql` to `V4__outbox_relay.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
 `provider, provider_event_id`; `order_id` for the timeline), `audit_log`, `idempotency_keys` (raw response bytes
-for exact replay), `mockpay_ledger` (the simulator's own record), `outbox` (partial index on `next_attempt_at` where `status = 'PENDING'`).
+for exact replay), `mockpay_ledger` (the simulator's own record), `outbox` (partial index on `next_attempt_at` where `status = 'PENDING'`; `claimed_at` set only while
+`IN_FLIGHT`).
 Check constraints mirror the domain invariants (amount range, `USD`, status list, refunded amount consistent
 with status). Hibernate only validates the schema.
 

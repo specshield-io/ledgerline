@@ -34,6 +34,8 @@ public final class ProblemTypes {
     public static final URI IDEMPOTENCY_KEY_REUSE = of("idempotency-key-reuse");
     public static final URI INVALID_SIGNATURE = of("invalid-signature");
     public static final URI MALFORMED_EVENT = of("malformed-event");
+    public static final URI OUTBOX_MESSAGE_NOT_FOUND = of("outbox-message-not-found");
+    public static final URI OUTBOX_MESSAGE_NOT_REPLAYABLE = of("outbox-message-not-replayable");
     public static final URI INTERNAL_ERROR = of("internal-error");
 
     private ProblemTypes() {}

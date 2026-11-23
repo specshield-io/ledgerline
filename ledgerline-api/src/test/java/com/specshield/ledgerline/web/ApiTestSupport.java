@@ -5,6 +5,7 @@ import static io.restassured.RestAssured.given;
 import com.specshield.ledgerline.MutableClock;
 import com.specshield.ledgerline.MutableClockConfig;
 import com.specshield.ledgerline.PostgresContainerConfig;
+import com.specshield.ledgerline.webhook.MerchantSink;
 import io.restassured.RestAssured;
 import io.restassured.http.ContentType;
 import io.restassured.response.Response;
@@ -37,12 +38,16 @@ abstract class ApiTestSupport {
     @Autowired
     FailureInjectionHook failureHook;
 
+    @Autowired
+    MerchantSink merchantSink;
+
     @BeforeEach
     void resetState() {
         RestAssured.port = port;
         clock.reset();
         TestOnlyFailureController.reset();
         failureHook.disarm();
+        merchantSink.reset();
         jdbc.execute(
                 "TRUNCATE orders, order_events_inbox, audit_log, idempotency_keys, outbox, mockpay_ledger RESTART IDENTITY");
     }

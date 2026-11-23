@@ -5,11 +5,14 @@ import java.util.HexFormat;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 
-/** Test-side signer, written independently of MockPaySigner and the verifier so a shared bug cannot hide. */
+/** Test-side signer, written independently of WebhookSigner and the verifier so a shared bug cannot hide. */
 public final class TestSigner {
 
     public static final String CURRENT_SECRET = "test-only-mockpay-signing-secret-current-0001";
     public static final String PREVIOUS_SECRET = "test-only-mockpay-signing-secret-previous-0002";
+
+    /** The relay's Ledgerline-Signature secret in the test profile (separate from MockPay's). */
+    public static final String MERCHANT_SECRET = "test-only-merchant-signing-secret-current-0001";
 
     private TestSigner() {}
 

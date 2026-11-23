@@ -17,8 +17,9 @@ import org.springframework.security.web.SecurityFilterChain;
 /**
  * Skeleton security posture: deny by default.
  *
- * <p>Reachable: the public orders API (no authentication: SpecShield Labs demo with synthetic data), the exposed
- * actuator endpoints, the OpenAPI document and the error page. Everything else is 403 problem+json.
+ * <p>Reachable: the public orders and admin API (no authentication: SpecShield Labs demo with synthetic data), the
+ * signed webhook and demo merchant endpoints, the exposed actuator endpoints, the OpenAPI document and the error
+ * page. Everything else is 403 problem+json.
  */
 @Configuration(proxyBeanMethods = false)
 public class SecurityConfig {
@@ -29,6 +30,9 @@ public class SecurityConfig {
                                 "/api/v1/**",
                                 // Authenticated by the HMAC signature, not by Spring Security.
                                 "/webhooks/mockpay",
+                                // The demo merchant (only mapped when ledgerline.merchant.sink.enabled); it checks
+                                // Ledgerline-Signature itself.
+                                "/demo/merchant-sink",
                                 "/actuator/health",
                                 "/actuator/health/**",
                                 "/actuator/info",

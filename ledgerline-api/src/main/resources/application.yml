@@ -91,6 +91,23 @@ ledgerline:
     cron: "0 */5 * * * *"
     # Payments settled more recently than this are skipped: their webhook may still be in flight.
     grace: 2m
+  outbox:
+    # Relay of merchant notifications (docs/adr/0003-transactional-outbox.md).
+    dispatcher-enabled: true
+    poll-interval: 500ms
+    batch-size: 20
+    backoff-base: 2s
+    backoff-cap: 1h
+    max-attempts: 8
+    # IN_FLIGHT rows older than this are returned to PENDING (crash recovery). Keep well above connect + request timeout.
+    stuck-after: 60s
+    watchdog-interval: 10s
+  merchant:
+    connect-timeout: 2s
+    request-timeout: 3s
+    sink:
+      # The built-in demo merchant at /demo/merchant-sink. Off unless a profile enables it.
+      enabled: false
 
 info:
   app:
@@ -117,6 +134,15 @@ ledgerline:
     mockpay:
       secrets:
         - "local-dev-only-mockpay-signing-secret-0001"
+  merchant:
+    # Local development only: notifications go to the built-in demo merchant. Synthetic secret, not a secret.
+    url: "http://localhost:${server.port:8080}/demo/merchant-sink"
+    signing-secrets:
+      - "local-dev-only-merchant-signing-secret-0001"
+    sink:
+      enabled: true
+      secrets:
+        - "local-dev-only-merchant-signing-secret-0001"
 
 ---
 spring:
@@ -143,6 +169,18 @@ ledgerline:
       orphan-cron: "-"
   reconciliation:
     cron: "-"
+  outbox:
+    # Tests run the dispatcher and the watchdog explicitly, with a controllable clock.
+    dispatcher-enabled: false
+  merchant:
+    # Outbox tests point this at WireMock; the default is the built-in sink. Synthetic test secrets.
+    url: "http://localhost:${local.server.port}/demo/merchant-sink"
+    signing-secrets:
+      - "test-only-merchant-signing-secret-current-0001"
+    sink:
+      enabled: true
+      secrets:
+        - "test-only-merchant-signing-secret-current-0001"
 logging:
   level:
     # Negative tests violate constraints on purpose; Hibernate would log each expected SQL error at WARN.
@@ -167,3 +205,7 @@ ledgerline:
     mockpay:
       # Required, no default: startup fails without them. Comma separated; two during rotation.
       secrets: ${LEDGERLINE_MOCKPAY_WEBHOOK_SECRETS}
+  merchant:
+    # Required, no defaults: startup fails without them.
+    url: ${LEDGERLINE_MERCHANT_URL}
+    signing-secrets: ${LEDGERLINE_MERCHANT_SIGNING_SECRETS}

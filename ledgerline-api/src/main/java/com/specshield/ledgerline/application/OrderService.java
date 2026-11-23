@@ -18,7 +18,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import tools.jackson.databind.json.JsonMapper;
 
-/** Order use cases. Every state-changing command writes an audit row in the same transaction. */
+/**
+ * Order use cases. Every state-changing command writes an audit row, and a merchant notification where one applies,
+ * in the same transaction.
+ */
 @Service
 public class OrderService {
 
@@ -31,6 +34,7 @@ public class OrderService {
     private final OrderQueries queries;
     private final AuditTrail audit;
     private final PaymentGateway payments;
+    private final MerchantNotifications notifications;
     private final OrderStateMachine stateMachine;
     private final OrderIds ids;
     private final Clock clock;
@@ -41,6 +45,7 @@ public class OrderService {
             OrderQueries queries,
             AuditTrail audit,
             PaymentGateway payments,
+            MerchantNotifications notifications,
             OrderStateMachine stateMachine,
             OrderIds ids,
             Clock clock,
@@ -49,6 +54,7 @@ public class OrderService {
         this.queries = queries;
         this.audit = audit;
         this.payments = payments;
+        this.notifications = notifications;
         this.stateMachine = stateMachine;
         this.ids = ids;
         this.clock = clock;
@@ -88,6 +94,7 @@ public class OrderService {
         Order order = get(id);
         Order cancelled = orders.update(stateMachine.cancel(order));
         audit(cancelled, "ORDER_CANCELLED", Map.of("from", order.status().name()));
+        notifications.statusChanged(order.status(), cancelled, clock.instant());
         return cancelled;
     }
 

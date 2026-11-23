@@ -139,7 +139,8 @@ class MockPayWebhookIT extends ApiTestSupport {
                 .isEqualTo(1);
         assertThat(jdbc.queryForObject(
                         "select count(*) from outbox where aggregate_id = ?::uuid and status = 'PENDING'"
-                                + " and payload->>'to' = 'PAID'",
+                                + " and event_type = 'order.paid' and payload->>'status' = 'PAID'"
+                                + " and payload->>'previousStatus' = 'PAYMENT_PENDING'",
                         Long.class,
                         orderId))
                 .isEqualTo(1);
@@ -225,7 +226,8 @@ class MockPayWebhookIT extends ApiTestSupport {
         assertThat(counter("ledgerline.webhook.duplicates") - duplicatesBefore).isEqualTo(deliveries - 1);
         assertThat(counter("ledgerline.webhook.failures") - failuresBefore).isZero();
         assertThat(jdbc.queryForObject("select count(*) from outbox where aggregate_id = ?::uuid", Long.class, orderId))
-                .isEqualTo(2);
+                .as("one order.paid notification; PAYMENT_PENDING is not announced")
+                .isEqualTo(1);
     }
 
     @Test
@@ -390,7 +392,7 @@ class MockPayWebhookIT extends ApiTestSupport {
         assertThat(status(orderId)).isEqualTo("PAYMENT_PENDING");
         assertThat(outcome("evt_i12_boom")).as("no inbox row committed").isNull();
         assertThat(count("audit_log")).isEqualTo(auditBefore);
-        assertThat(jdbc.queryForObject("select count(*) from outbox where payload->>'to' = 'PAID'", Long.class))
+        assertThat(jdbc.queryForObject("select count(*) from outbox where payload->>'status' = 'PAID'", Long.class))
                 .isZero();
         assertThat(counter("ledgerline.webhook.failures") - failuresBefore).isEqualTo(1);
 
