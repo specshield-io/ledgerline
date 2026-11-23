@@ -73,6 +73,24 @@ ledgerline:
   idempotency:
     # Hourly purge of expired idempotency keys (UTC). "-" disables it.
     cleanup-cron: "0 0 * * * *"
+  mockpay:
+    # The payment-provider simulator. Off unless a profile enables it (local does).
+    enabled: false
+    webhook-url: "http://localhost:${server.port:8080}/webhooks/mockpay"
+    default-outcome: PAYMENT_SUCCEEDED
+    min-delay: 300ms
+    max-delay: 800ms
+    max-delivery-attempts: 5
+    retry-backoff: 250ms
+  webhook:
+    mockpay:
+      tolerance: 300s
+      orphan-retry-window: 1h
+      orphan-cron: "*/30 * * * * *"
+  reconciliation:
+    cron: "0 */5 * * * *"
+    # Payments settled more recently than this are skipped: their webhook may still be in flight.
+    grace: 2m
 
 info:
   app:
@@ -89,6 +107,16 @@ spring:
     url: ${LEDGERLINE_DB_URL:jdbc:postgresql://localhost:5432/ledgerline}
     username: ${LEDGERLINE_DB_USER:ledgerline}
     password: ${LEDGERLINE_DB_PASSWORD:ledgerline}
+ledgerline:
+  mockpay:
+    enabled: true
+    # Local development only: synthetic secrets for a simulator talking to itself. Not secrets.
+    signing-secrets:
+      - "local-dev-only-mockpay-signing-secret-0001"
+  webhook:
+    mockpay:
+      secrets:
+        - "local-dev-only-mockpay-signing-secret-0001"
 
 ---
 spring:
@@ -100,6 +128,21 @@ ledgerline:
   idempotency:
     # Tests run the cleanup job explicitly, with a controllable clock.
     cleanup-cron: "-"
+  mockpay:
+    enabled: false
+    webhook-url: "http://localhost:${local.server.port}/webhooks/mockpay"
+    signing-secrets:
+      - "test-only-mockpay-signing-secret-current-0001"
+    retry-backoff: 50ms
+  webhook:
+    mockpay:
+      # Two secrets: the receiver accepts either (rotation). Synthetic test values.
+      secrets:
+        - "test-only-mockpay-signing-secret-current-0001"
+        - "test-only-mockpay-signing-secret-previous-0002"
+      orphan-cron: "-"
+  reconciliation:
+    cron: "-"
 logging:
   level:
     # Negative tests violate constraints on purpose; Hibernate would log each expected SQL error at WARN.
@@ -119,3 +162,8 @@ spring:
 springdoc:
   swagger-ui:
     enabled: false
+ledgerline:
+  webhook:
+    mockpay:
+      # Required, no default: startup fails without them. Comma separated; two during rotation.
+      secrets: ${LEDGERLINE_MOCKPAY_WEBHOOK_SECRETS}

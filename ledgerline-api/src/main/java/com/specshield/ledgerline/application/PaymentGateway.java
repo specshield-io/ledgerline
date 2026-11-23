@@ -9,5 +9,5 @@ import com.specshield.ledgerline.domain.Order;
 public interface PaymentGateway {
 
     /** Asks the provider to start collecting payment for the order. Returns the provider's reference. */
-    String requestPayment(Order order);
+    String startPayment(Order order);
 }

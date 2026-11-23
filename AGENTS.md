@@ -72,6 +72,15 @@ new error kind; never reuse one for a different meaning, because clients branch 
   `application.IdempotencyService`, not in controllers.
 - Every state-changing command writes an `audit_log` row in the same transaction as the change.
 
+### Webhooks and provider events
+
+- Provider events enter only through a signed webhook (`webhook.WebhookSignatureVerifier`): raw bytes, constant
+  time `MessageDigest.isEqual`, 300 s tolerance. Never log or echo secrets or signature values.
+- Every event goes through the inbox and `OrderEventSequencer` under a `SELECT ... FOR UPDATE` order lock, in one
+  transaction with the audit and outbox rows. Never apply a provider event to an order directly.
+- Design rationale: [ADR 0002](docs/adr/0002-webhook-signature-and-inbox.md). Record significant decisions as
+  ADRs in `docs/adr/`.
+
 ## 5. Testing rules
 
 - **Every behaviour change ships with tests.** No exceptions for "small" changes.

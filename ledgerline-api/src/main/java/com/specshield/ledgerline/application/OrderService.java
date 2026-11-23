@@ -78,7 +78,7 @@ public class OrderService {
     public PaymentRequested pay(UUID id) {
         Order order = get(id);
         stateMachine.requirePayable(order);
-        String reference = payments.requestPayment(order);
+        String reference = payments.startPayment(order);
         audit(order, "PAYMENT_REQUESTED", Map.of("paymentReference", reference));
         return new PaymentRequested(order, reference);
     }

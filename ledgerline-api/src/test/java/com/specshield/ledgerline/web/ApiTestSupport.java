@@ -34,12 +34,17 @@ abstract class ApiTestSupport {
     @Autowired
     MutableClock clock;
 
+    @Autowired
+    FailureInjectionHook failureHook;
+
     @BeforeEach
     void resetState() {
         RestAssured.port = port;
         clock.reset();
         TestOnlyFailureController.reset();
-        jdbc.execute("TRUNCATE orders, order_events_inbox, audit_log, idempotency_keys, outbox RESTART IDENTITY");
+        failureHook.disarm();
+        jdbc.execute(
+                "TRUNCATE orders, order_events_inbox, audit_log, idempotency_keys, outbox, mockpay_ledger RESTART IDENTITY");
     }
 
     static Response postJson(String path, String key, String body) {

@@ -34,6 +34,11 @@ public class JpaOrderStore implements OrderStore {
     }
 
     @Override
+    public Optional<Order> findByIdForUpdate(UUID id) {
+        return orders.findByIdForUpdate(id).map(OrderMapper::toDomain);
+    }
+
+    @Override
     public Optional<Order> findById(UUID id) {
         return orders.findById(id).map(OrderMapper::toDomain);
     }

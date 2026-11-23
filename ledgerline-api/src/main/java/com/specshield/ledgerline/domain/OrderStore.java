@@ -16,4 +16,10 @@ public interface OrderStore {
     Order update(Order order);
 
     Optional<Order> findById(UUID id);
+
+    /**
+     * Reads the order and locks it until the surrounding transaction ends (SELECT ... FOR UPDATE), so concurrent
+     * event processing for one order is serialised.
+     */
+    Optional<Order> findByIdForUpdate(UUID id);
 }
