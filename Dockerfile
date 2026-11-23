@@ -20,8 +20,12 @@ COPY ledgerline-api/pom.xml ledgerline-api/
 RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q -pl ledgerline-api dependency:go-offline
 
 COPY ledgerline-api/src ledgerline-api/src
+# The operations console is built by the same Maven run (Node and npm are downloaded, pinned, into ops-console/node)
+# and packaged into the jar's static/ folder, so one container serves both.
+COPY ops-console/ ops-console/
 # Tests run in CI (`./mvnw verify`), not inside the image build.
-RUN --mount=type=cache,target=/root/.m2 ./mvnw -B -q -pl ledgerline-api package -DskipTests \
+RUN --mount=type=cache,target=/root/.m2 --mount=type=cache,target=/root/.npm \
+    ./mvnw -B -q -pl ledgerline-api package -DskipTests \
  && cp ledgerline-api/target/ledgerline-api-*.jar /workspace/app.jar \
  && java -Djarmode=tools -jar /workspace/app.jar extract --layers --launcher --destination /workspace/extracted
 

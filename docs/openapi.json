@@ -1,7 +1,7 @@
 {
   "openapi" : "3.1.0",
   "info" : {
-    "description" : "Order and payment event processing. SpecShield Labs internal demonstration: synthetic data only, not a production payment system, not PCI DSS scoped. The data is reset every night at 03:00 UTC.\n\nState-changing POST requests require an `Idempotency-Key` header (8-128 characters, `[A-Za-z0-9_-]`). Repeating a request with the same key and body replays the stored response with `Idempotent-Replayed: true`. Every error is RFC 9457 `application/problem+json`. Public endpoints are rate limited per client (60 requests per minute; 10 chaos scenario starts per minute); over the limit the answer is 429 with `Retry-After`.",
+    "description" : "Order and payment event processing. SpecShield Labs internal demonstration: synthetic data only, not a production payment system, not PCI DSS scoped. The data is reset every night at 03:00 UTC.\n\nState-changing POST requests require an `Idempotency-Key` header (8-128 characters, `[A-Za-z0-9_-]`). Repeating a request with the same key and body replays the stored response with `Idempotent-Replayed: true`. Every error is RFC 9457 `application/problem+json`. Public endpoints are rate limited per client (240 requests per minute; 10 chaos scenario starts per minute); over the limit the answer is 429 with `Retry-After`.",
     "license" : {
       "name" : "Apache-2.0",
       "url" : "https://www.apache.org/licenses/LICENSE-2.0"
@@ -33,6 +33,38 @@
     "name" : "Orders"
   } ],
   "paths" : {
+    "/api/v1/admin/me" : {
+      "get" : {
+        "operationId" : "me",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/AdminUser"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "security" : [ {
+          "basicAuth" : [ ]
+        } ],
+        "summary" : "The authenticated user and roles (VIEWER or ADMIN)",
+        "tags" : [ "Demo administration" ]
+      }
+    },
     "/api/v1/admin/outbox" : {
       "get" : {
         "operationId" : "list_1",
@@ -765,6 +797,57 @@
         "tags" : [ "Orders" ]
       }
     },
+    "/api/v1/orders/{id}/deliveries" : {
+      "get" : {
+        "operationId" : "deliveries",
+        "parameters" : [ {
+          "in" : "path",
+          "name" : "id",
+          "required" : true,
+          "schema" : {
+            "type" : "string",
+            "format" : "uuid"
+          }
+        } ],
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "type" : "array",
+                  "items" : {
+                    "$ref" : "#/components/schemas/OrderDelivery"
+                  }
+                }
+              }
+            },
+            "description" : "The order's outbox rows"
+          },
+          "404" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Order not found"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Merchant notifications for an order and their delivery state, oldest first",
+        "tags" : [ "Orders" ]
+      }
+    },
     "/api/v1/orders/{id}/pay" : {
       "post" : {
         "description" : "Allowed for CREATED and PAYMENT_FAILED orders. The status changes later, when MockPay reports payment events.",
@@ -896,6 +979,35 @@
         "tags" : [ "Orders" ]
       }
     },
+    "/api/v1/stats" : {
+      "get" : {
+        "operationId" : "stats",
+        "responses" : {
+          "200" : {
+            "content" : {
+              "application/json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Stats"
+                }
+              }
+            },
+            "description" : "OK"
+          },
+          "default" : {
+            "content" : {
+              "application/problem+json" : {
+                "schema" : {
+                  "$ref" : "#/components/schemas/Problem"
+                }
+              }
+            },
+            "description" : "Error"
+          }
+        },
+        "summary" : "Reliability counters for dashboards",
+        "tags" : [ "Meta" ]
+      }
+    },
     "/webhooks/mockpay" : {
       "post" : {
         "description" : "Signed with MockPay-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of \"t.body\">. Duplicates are acknowledged with 200 and duplicate=true so the provider stops retrying.",
@@ -969,6 +1081,21 @@
   },
   "components" : {
     "schemas" : {
+      "AdminUser" : {
+        "type" : "object",
+        "properties" : {
+          "roles" : {
+            "type" : "array",
+            "example" : [ "ADMIN" ],
+            "items" : {
+              "type" : "string"
+            }
+          },
+          "username" : {
+            "type" : "string"
+          }
+        }
+      },
       "ChaosScenario" : {
         "type" : "object",
         "properties" : {
@@ -1088,6 +1215,47 @@
             "type" : "integer",
             "format" : "int64",
             "description" : "Optimistic-locking version; increases on every change"
+          }
+        }
+      },
+      "OrderDelivery" : {
+        "type" : "object",
+        "description" : "A merchant notification about the order and its delivery state",
+        "properties" : {
+          "attempts" : {
+            "type" : "integer",
+            "format" : "int32",
+            "description" : "Delivery attempts made so far"
+          },
+          "createdAt" : {
+            "type" : "string",
+            "format" : "date-time"
+          },
+          "deliveredAt" : {
+            "type" : [ "string", "null" ],
+            "format" : "date-time"
+          },
+          "eventType" : {
+            "type" : "string",
+            "example" : "order.paid"
+          },
+          "id" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Outbox id; sent to the merchant as Ledgerline-Event-Id"
+          },
+          "lastError" : {
+            "type" : [ "string", "null" ],
+            "description" : "Error of the last failed attempt"
+          },
+          "nextAttemptAt" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "When the next attempt is due (PENDING)"
+          },
+          "status" : {
+            "type" : "string",
+            "enum" : [ "PENDING", "IN_FLIGHT", "DELIVERED", "DEAD" ]
           }
         }
       },
@@ -1323,6 +1491,52 @@
             "type" : [ "integer", "null" ],
             "format" : "int32",
             "description" : "The webhook receiver's answer, for deliveries"
+          },
+          "result" : {
+            "type" : [ "string", "null" ],
+            "description" : "The receiver's problem type for an error answer",
+            "example" : "invalid-signature"
+          }
+        }
+      },
+      "Stats" : {
+        "type" : "object",
+        "description" : "Webhook counters since countingSince, outbox state now",
+        "properties" : {
+          "applied" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Provider events applied to orders"
+          },
+          "countingSince" : {
+            "type" : "string",
+            "format" : "date-time",
+            "description" : "Counters are per instance and start at zero when it starts"
+          },
+          "duplicatesBlocked" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Deliveries of an already stored event, acknowledged and not applied again"
+          },
+          "outboxDead" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Merchant notifications that ran out of attempts"
+          },
+          "outboxPending" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Merchant notifications waiting for delivery or retry"
+          },
+          "received" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Webhook deliveries received"
+          },
+          "signaturesRejected" : {
+            "type" : "integer",
+            "format" : "int64",
+            "description" : "Deliveries refused for a missing, invalid or expired signature"
           }
         }
       },

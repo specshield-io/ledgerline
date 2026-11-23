@@ -39,6 +39,15 @@
         <bucket4j.version>8.22.0</bucket4j.version>
         <shedlock.version>7.11.0</shedlock.version>
 
+        <!-- The operations console (ops-console/) is built by Maven and served from the jar's static/ folder.
+             -Dskip.frontend skips it (backend-only builds). Node 22.23.4 (LTS security release, 2026-10-20) and
+             npm 11.21.2 (2026-11-04): npm 10 fails to resolve this dependency tree. -->
+        <frontend-plugin.version>2.0.2</frontend-plugin.version>
+        <frontend.node.version>v22.23.4</frontend.node.version>
+        <frontend.npm.version>11.21.2</frontend.npm.version>
+        <ops-console.dir>${project.basedir}/../ops-console</ops-console.dir>
+        <skip.frontend>false</skip.frontend>
+
         <jacoco-plugin.version>0.8.16</jacoco-plugin.version>
         <pitest-plugin.version>1.30.2</pitest-plugin.version>
         <pitest-junit5-plugin.version>1.2.3</pitest-junit5-plugin.version>
@@ -217,6 +226,75 @@
                         <goals>
                             <goal>build-info</goal>
                         </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Builds ops-console with a pinned Node/npm downloaded into ops-console/node (git-ignored). -->
+            <plugin>
+                <groupId>com.github.eirslett</groupId>
+                <artifactId>frontend-maven-plugin</artifactId>
+                <version>${frontend-plugin.version}</version>
+                <configuration>
+                    <workingDirectory>${ops-console.dir}</workingDirectory>
+                    <installDirectory>${ops-console.dir}</installDirectory>
+                    <skip>${skip.frontend}</skip>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>install-node-and-npm</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>install-node-and-npm</goal>
+                        </goals>
+                        <configuration>
+                            <nodeVersion>${frontend.node.version}</nodeVersion>
+                            <npmVersion>${frontend.npm.version}</npmVersion>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>npm-ci</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>ci --no-audit --no-fund</arguments>
+                        </configuration>
+                    </execution>
+                    <execution>
+                        <id>npm-build</id>
+                        <phase>generate-resources</phase>
+                        <goals>
+                            <goal>npm</goal>
+                        </goals>
+                        <configuration>
+                            <arguments>run build</arguments>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- ops-console/dist -> static/ in the jar, served by Spring Boot next to the API. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-resources-plugin</artifactId>
+                <executions>
+                    <execution>
+                        <id>copy-ops-console</id>
+                        <phase>process-resources</phase>
+                        <goals>
+                            <goal>copy-resources</goal>
+                        </goals>
+                        <configuration>
+                            <skip>${skip.frontend}</skip>
+                            <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
+                            <resources>
+                                <resource>
+                                    <directory>${ops-console.dir}/dist</directory>
+                                </resource>
+                            </resources>
+                        </configuration>
                     </execution>
                 </executions>
             </plugin>

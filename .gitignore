@@ -40,3 +40,10 @@ logs/
 
 # jqwik example database
 .jqwik-database
+
+# ops-console: Node/npm downloaded by the Maven build, test and E2E output
+ops-console/node/
+ops-console/coverage/
+ops-console/test-results/
+ops-console/playwright-report/
+ops-console/blob-report/

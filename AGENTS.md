@@ -20,7 +20,7 @@ event processing service (outbox, webhooks, idempotency, a mock payment provider
 
 ```
 ledgerline-api/   Spring Boot 4 service (Java 25), Maven module
-ops-console/      React operations console (added in a later step)
+ops-console/      React operations console (React 19, TypeScript, Vite), served from the jar
 ```
 
 Package root `com.specshield.ledgerline`:
@@ -124,6 +124,22 @@ new error kind; never reuse one for a different meaning, because clients branch 
   Raise the gate as code lands; never lower it to get a build through.
 - Mutation testing (PIT) is configured but not gated yet.
 
+### ops-console
+
+- TypeScript `strict`; API types are generated from `docs/openapi.json` (`npm run generate:api`) and committed.
+  Never hand-write API types; CI fails when they are stale.
+- Unit tests: Vitest + Testing Library + MSW (`*.test.ts(x)`), using catalogue IDs `LL-F..`. Query by role and
+  accessible name, not by class or test id, unless the value is deliberately volatile.
+- E2E: Playwright (`e2e/`, IDs `LL-E..`) against `docker compose -f docker-compose.yml -f docker-compose.e2e.yml`.
+  Screenshot baselines are per platform; regenerate the Linux ones with `scripts/e2e-docker.sh --update-snapshots`
+  (the pinned Playwright image CI uses), never on a developer's host.
+- Accessibility is a requirement: every status shows text and an icon, not colour alone; everything works with a
+  keyboard and has a visible focus ring; axe (LL-E06) must report no serious or critical violations in either theme.
+- Polling budget: one visitor stays well under the 240/min public rate limit (timeline 1 s only while a scenario
+  runs). Do not add polling without checking it.
+- Use Node 22.23.4 and npm 11.21.2 (the Maven build downloads them into `ops-console/node`; `PATH=$PWD/node:$PATH`).
+  npm 10 cannot resolve this dependency tree.
+
 ## 6. Commands
 
 Requires JDK 25 (`JAVA_HOME` must point at it) and Docker (for Testcontainers and Compose).
@@ -133,7 +149,12 @@ Requires JDK 25 (`JAVA_HOME` must point at it) and Docker (for Testcontainers an
 | `./mvnw verify` | Compile, format check (Spotless), unit + integration tests, coverage report + gate, SBOM |
 | `./mvnw -Pmutation test-compile pitest:mutationCoverage` | Mutation testing; report at `ledgerline-api/target/pit-reports/index.html` |
 | `./mvnw spotless:apply` | Format the code (palantir-java-format) |
-| `docker compose up --build` | Start PostgreSQL 17 and the app on http://localhost:8080 |
+| `docker compose up --build` | Start PostgreSQL 17 and the app (API + console) on http://localhost:8080 |
+| `./mvnw verify -Dskip.frontend` | Backend only, without building ops-console |
+| `cd ops-console && npm run dev` | Console dev server on http://localhost:5173, proxying the API on :8080 |
+| `cd ops-console && npm run lint && npm run typecheck && npm test && npm run build` | Console checks (as CI) |
+| `cd ops-console && npx playwright test` | E2E against a running stack (`E2E_BASE_URL`, default http://localhost:8080) |
+| `ops-console/scripts/e2e-docker.sh` | The same E2E suite in the pinned Linux Playwright image, as CI runs it |
 
 Docker notes: with Colima, export `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and
 `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before `./mvnw verify`. Compose host ports
@@ -146,7 +167,8 @@ lifecycle phase). Use the command in the table above.
 
 A change is done only when **all** of the following hold:
 
-- [ ] Tests green locally (`./mvnw verify`) **and** in CI.
+- [ ] Tests green locally (`./mvnw verify`; for console changes also `npm test`, `npm run build`,
+      `npx playwright test`) **and** in CI.
 - [ ] No new warnings (compiler, build, test output, Spotless).
 - [ ] OpenAPI is updated (annotations/descriptions accurate; `/v3/api-docs` reflects the change).
 - [ ] The relevant README section is updated.

@@ -111,7 +111,7 @@ ledgerline:
   rate-limit:
     # Per client IP, in memory, per instance. 429 + Retry-After when exceeded.
     enabled: true
-    public-per-minute: 60
+    public-per-minute: 240
     chaos-per-minute: 10
     # CIDRs of our own reverse proxies; X-Forwarded-For is trusted only from them. Empty: use the TCP peer address.
     trusted-proxies: []

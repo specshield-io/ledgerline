@@ -17,8 +17,7 @@ updates:
       - dependency-name: "org.springdoc:*"
         update-types: ["version-update:semver-major", "version-update:semver-minor"]
 
-  # ops-console has no package.json yet (created in a later step). Until then Dependabot reports
-  # "dependency file not found" for this entry; that is expected.
+  # ops-console (React operations console).
   - package-ecosystem: npm
     directory: "/ops-console"
     schedule:

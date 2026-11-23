@@ -15,7 +15,11 @@ public final class ScenarioRun {
     }
 
     /** One thing the run did, for the run view. */
-    public record Step(Instant at, String description, Integer httpStatus) {}
+    /**
+     * @param httpStatus the webhook receiver's answer, for deliveries
+     * @param result the receiver's problem type for an error answer (e.g. {@code invalid-signature}), else null
+     */
+    public record Step(Instant at, String description, Integer httpStatus, String result) {}
 
     private final String id;
     private final Scenario scenario;

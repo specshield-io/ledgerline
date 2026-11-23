@@ -163,6 +163,14 @@ public class JdbcOutboxStore implements Outbox, OutboxStore {
     }
 
     @Override
+    public List<OutboxMessage> forAggregate(UUID aggregateId) {
+        return jdbc.sql("SELECT " + COLUMNS + " FROM outbox WHERE aggregate_id = :id ORDER BY id")
+                .param("id", aggregateId)
+                .query(JdbcOutboxStore::map)
+                .list();
+    }
+
+    @Override
     public Optional<OutboxMessage> findByIdForUpdate(long id) {
         return jdbc.sql("SELECT " + COLUMNS + " FROM outbox WHERE id = :id FOR UPDATE")
                 .param("id", id)

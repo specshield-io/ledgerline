@@ -44,8 +44,13 @@ public class MockPayScripts {
     /** A payment MockPay has opened for an order. */
     public record Payment(String paymentId, Order order) {}
 
-    /** @param status the receiver's HTTP status, or -1 when it could not be reached */
-    public record Delivery(String eventId, int status) {}
+    /**
+     * @param status the receiver's HTTP status, or -1 when it could not be reached
+     * @param problem the receiver's problem type slug for an error answer (e.g. {@code invalid-signature}), else null
+     */
+    public record Delivery(String eventId, int status, String problem) {}
+
+    private static final String PROBLEM_PREFIX = "urn:ledgerline:problem:";
 
     private final MockPayProperties properties;
     private final MockPayLedger ledger;
@@ -123,14 +128,26 @@ public class MockPayScripts {
             request.header("X-Request-Id", correlationId);
         }
         try {
-            int status = http.send(request.build(), HttpResponse.BodyHandlers.discarding())
-                    .statusCode();
-            return new Delivery(eventId, status);
+            HttpResponse<String> response = http.send(request.build(), HttpResponse.BodyHandlers.ofString());
+            return new Delivery(eventId, response.statusCode(), problem(response));
         } catch (IOException e) {
-            return new Delivery(eventId, -1);
+            return new Delivery(eventId, -1, null);
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
-            return new Delivery(eventId, -1);
+            return new Delivery(eventId, -1, null);
+        }
+    }
+
+    /** The slug of the receiver's problem type, read from its own problem+json answer. */
+    private String problem(HttpResponse<String> response) {
+        if (response.statusCode() < 400) {
+            return null;
+        }
+        try {
+            String type = json.readTree(response.body()).path("type").asString("");
+            return type.startsWith(PROBLEM_PREFIX) ? type.substring(PROBLEM_PREFIX.length()) : null;
+        } catch (RuntimeException e) {
+            return null;
         }
     }
 

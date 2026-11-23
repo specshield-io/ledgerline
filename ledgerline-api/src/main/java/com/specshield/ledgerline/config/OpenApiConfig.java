@@ -37,7 +37,7 @@ public class OpenApiConfig {
                                 State-changing POST requests require an `Idempotency-Key` header (8-128 characters, \
                                 `[A-Za-z0-9_-]`). Repeating a request with the same key and body replays the stored \
                                 response with `Idempotent-Replayed: true`. Every error is RFC 9457 \
-                                `application/problem+json`. Public endpoints are rate limited per client (60 requests \
+                                `application/problem+json`. Public endpoints are rate limited per client (240 requests \
                                 per minute; 10 chaos scenario starts per minute); over the limit the answer is 429 with \
                                 `Retry-After`.""")
                         .license(new License().name("Apache-2.0").url("https://www.apache.org/licenses/LICENSE-2.0")))

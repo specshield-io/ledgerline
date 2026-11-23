@@ -519,6 +519,30 @@ class OutboxRelayIT extends ApiTestSupport {
     }
 
     @Test
+    @DisplayName("GET /api/v1/orders/{id}/deliveries shows the order's notifications and their state, publicly")
+    void deliveriesForOrder() {
+        merchantAnswers(500);
+        long id = cancelledOrderNotification();
+        String orderId = row(id).aggregateId().toString();
+        dispatcher.dispatchOnce();
+
+        given().get("/api/v1/orders/" + orderId + "/deliveries")
+                .then()
+                .statusCode(200)
+                .body("size()", equalTo(1))
+                .body("[0].id", equalTo((int) id))
+                .body("[0].eventType", equalTo("order.cancelled"))
+                .body("[0].status", equalTo("PENDING"))
+                .body("[0].attempts", equalTo(1))
+                .body("[0].lastError", equalTo("HTTP 500 from merchant endpoint"))
+                .body("[0].payload", equalTo(null));
+        given().get("/api/v1/orders/0194a1b2-c3d4-7e5f-8a6b-7c8d9e0f1a2b/deliveries")
+                .then()
+                .statusCode(404)
+                .body("type", equalTo("urn:ledgerline:problem:order-not-found"));
+    }
+
+    @Test
     @DisplayName("outbox gauges report the pending count and the age of the oldest pending row")
     void gauges() {
         merchantAnswers(500);

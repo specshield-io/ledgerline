@@ -25,9 +25,9 @@ class RateLimitIT extends ApiTestSupport {
 
     @Test
     @DisplayName(
-            "LL-C03 the 61st public request in a minute from one IP is 429 with Retry-After; another IP is unaffected")
+            "LL-C03 the 241st public request in a minute from one IP is 429 with Retry-After; another IP is unaffected")
     void publicLimit() {
-        for (int i = 1; i <= 60; i++) {
+        for (int i = 1; i <= 240; i++) {
             assertThat(listOrdersFrom("203.0.113.7").statusCode())
                     .as("request %d", i)
                     .isEqualTo(200);
@@ -89,7 +89,7 @@ class RateLimitIT extends ApiTestSupport {
     @Test
     @DisplayName("LL-C03 X-Forwarded-For entries left of the trusted hop cannot pick someone else's bucket")
     void spoofedHeader() {
-        for (int i = 0; i < 60; i++) {
+        for (int i = 0; i < 240; i++) {
             listOrdersFrom("203.0.113.30");
         }
         // The client claims to be someone else, but the trusted proxy appends the real address last.

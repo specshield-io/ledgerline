@@ -1,0 +1,16 @@
+# End-to-end test settings, layered on docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.e2e.yml up --build --wait
+# Short outbox backoff and a 15 s merchant outage, so LL-E04 (merchant down, dead letter, replay) runs in under a
+# minute instead of the ~17 minutes production settings would take. Everything else is the local profile.
+services:
+  app:
+    environment:
+      LEDGERLINE_OUTBOX_BACKOFFBASE: 100ms
+      LEDGERLINE_OUTBOX_BACKOFFCAP: 400ms
+      LEDGERLINE_OUTBOX_MAXATTEMPTS: "3"
+      LEDGERLINE_CHAOS_MERCHANTOUTAGE: 15s
+    networks:
+      default:
+        # Playwright runs in a container on this network. Not "app": Chromium's HSTS preload list covers the .app
+        # top-level domain, which makes it force HTTPS for a host named "app".
+        aliases: [ledgerline-api]

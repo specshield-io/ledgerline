@@ -23,7 +23,7 @@ public record RateLimitProperties(
         List<String> trustedProxies) {
 
     public RateLimitProperties {
-        publicPerMinute = publicPerMinute == 0 ? 60 : publicPerMinute;
+        publicPerMinute = publicPerMinute == 0 ? 240 : publicPerMinute;
         chaosPerMinute = chaosPerMinute == 0 ? 10 : chaosPerMinute;
         trustedProxies = trustedProxies == null
                 ? List.of()

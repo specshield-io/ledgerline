@@ -37,8 +37,8 @@ import org.springframework.web.filter.CorsFilter;
  * Deny by default.
  *
  * <ul>
- *   <li>Public (rate limited): the orders API, {@code /api/v1/meta}, the chaos API, health and info, the OpenAPI
- *       document and Swagger UI. The MockPay webhook and the demo merchant are public too; they authenticate requests
+ *   <li>Public (rate limited): the orders API, {@code /api/v1/meta}, {@code /api/v1/stats}, the chaos API, health and
+ *       info, the OpenAPI document and Swagger UI, and the operations console's static files. The MockPay webhook and the demo merchant are public too; they authenticate requests
  *       by HMAC signature.
  *   <li>VIEWER or ADMIN (HTTP Basic): {@code GET /api/v1/admin/**} and {@code /actuator/prometheus}.
  *   <li>ADMIN: every other {@code /api/v1/admin/**} request (replay, reset).
@@ -79,7 +79,13 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/swagger-ui.html",
                                 "/swagger-ui/**",
-                                "/error")
+                                "/error",
+                                // The operations console: its page, its routes and its hashed assets.
+                                "/",
+                                "/index.html",
+                                "/outbox",
+                                "/assets/**",
+                                "/favicon.svg")
                         .permitAll()
                         .anyRequest()
                         .denyAll())
@@ -129,7 +135,10 @@ public class SecurityConfig {
             forbidden(problems, request, response);
             return;
         }
-        response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"" + REALM + "\", charset=\"UTF-8\"");
+        // A script (the console) marks its requests; a challenge would make the browser open its own login prompt.
+        if (!"XMLHttpRequest".equals(request.getHeader("X-Requested-With"))) {
+            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, "Basic realm=\"" + REALM + "\", charset=\"UTF-8\"");
+        }
         problems.write(
                 request,
                 response,
@@ -177,7 +186,8 @@ public class SecurityConfig {
         CorsConfiguration api = new CorsConfiguration();
         api.setAllowedOrigins(properties.corsAllowedOrigins());
         api.setAllowedMethods(List.of("GET", "POST"));
-        api.setAllowedHeaders(List.of("Content-Type", "Idempotency-Key", "X-Request-Id", "Authorization"));
+        api.setAllowedHeaders(
+                List.of("Content-Type", "Idempotency-Key", "X-Request-Id", "Authorization", "X-Requested-With"));
         api.setExposedHeaders(List.of("X-Request-Id", "Idempotent-Replayed", "Retry-After", "Location"));
         api.setAllowCredentials(false);
         api.setMaxAge(3_600L);

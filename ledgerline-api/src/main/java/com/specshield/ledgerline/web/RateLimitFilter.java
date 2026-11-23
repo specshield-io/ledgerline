@@ -13,7 +13,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
  * Applies {@link RateLimiter}: starting a chaos scenario uses the chaos plan (10/min); every other request to the API
- * and its documentation uses the public plan (60/min). Webhooks (HMAC-authenticated provider traffic), the demo
+ * and its documentation uses the public plan (240/min, room for the operations console polling). Webhooks (HMAC-authenticated provider traffic), the demo
  * merchant and actuator endpoints are not limited here.
  *
  * <p>Runs inside the Spring Security chain, after CORS and the security headers and before authentication, so a
