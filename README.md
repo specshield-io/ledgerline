@@ -1,7 +1,7 @@
 # Ledgerline
 
 <!-- Badges. CI and licence are live once the repository is public; the rest are placeholders until those jobs exist. -->
-[![CI](https://github.com/specshield-labs/ledgerline/actions/workflows/ci.yml/badge.svg)](https://github.com/specshield-labs/ledgerline/actions/workflows/ci.yml)
+[![CI](https://github.com/specshield-io/ledgerline/actions/workflows/ci.yml/badge.svg)](https://github.com/specshield-io/ledgerline/actions/workflows/ci.yml)
 ![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)
 ![CodeQL](https://img.shields.io/badge/CodeQL-pending-lightgrey)
 ![OpenSSF Scorecard](https://img.shields.io/badge/OpenSSF%20Scorecard-pending-lightgrey)

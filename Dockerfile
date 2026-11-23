@@ -30,7 +30,7 @@ FROM eclipse-temurin:25-jre-noble@sha256:f3dd0838e69b881cc382237d5901e74ae3705b1
 LABEL org.opencontainers.image.title="ledgerline-api" \
       org.opencontainers.image.description="SpecShield Labs internal demonstration. Synthetic data only." \
       org.opencontainers.image.licenses="Apache-2.0" \
-      org.opencontainers.image.source="https://github.com/specshield-labs/ledgerline"
+      org.opencontainers.image.source="https://github.com/specshield-io/ledgerline"
 
 RUN groupadd --system --gid 10001 ledgerline \
  && useradd --system --uid 10001 --gid ledgerline --no-create-home --shell /usr/sbin/nologin ledgerline
