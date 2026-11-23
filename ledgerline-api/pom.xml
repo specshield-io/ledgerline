@@ -29,7 +29,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
         <!-- Not managed by Spring Boot 4.0.10; pinned to the latest GA versions on Maven Central (2026-11-23). -->
-        <springdoc.version>3.0.3</springdoc.version>
+        <springdoc.version>3.2.0</springdoc.version>
         <archunit.version>1.5.1</archunit.version>
         <jqwik.version>1.10.2</jqwik.version>
         <wiremock.version>3.13.2</wiremock.version>
