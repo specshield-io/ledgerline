@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>InboxEventEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.persistence</a> &gt; <span class="el_source">InboxEventEntity.java</span></div><h1>InboxEventEntity.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.persistence;
+
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.Table;
+import java.time.Instant;
+import java.util.UUID;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
+
+/** Table {@code order_events_inbox}: raw provider events, unique per (provider, provider_event_id). */
+@Entity
+@Table(name = &quot;order_events_inbox&quot;)
+public class InboxEventEntity {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @Column(nullable = false, length = 64)
+    private String provider;
+
+    /** The order the event belongs to, once known; null for orphans. */
+    @Column(name = &quot;order_id&quot;)
+    private UUID orderId;
+
+    @Column(name = &quot;provider_event_id&quot;, nullable = false)
+    private String providerEventId;
+
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(nullable = false, columnDefinition = &quot;jsonb&quot;)
+    private String payload;
+
+    @Column(name = &quot;signature_valid&quot;, nullable = false)
+    private boolean signatureValid;
+
+    @Column(name = &quot;received_at&quot;, nullable = false)
+    private Instant receivedAt;
+
+    @Column(name = &quot;processed_at&quot;)
+    private Instant processedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 16)
+    private InboxOutcome outcome;
+
+<span class="fc" id="L52">    protected InboxEventEntity() {}</span>
+
+    public InboxEventEntity(
+<span class="fc" id="L55">            String provider, String providerEventId, String payload, boolean signatureValid, Instant receivedAt) {</span>
+<span class="fc" id="L56">        this.provider = provider;</span>
+<span class="fc" id="L57">        this.providerEventId = providerEventId;</span>
+<span class="fc" id="L58">        this.payload = payload;</span>
+<span class="fc" id="L59">        this.signatureValid = signatureValid;</span>
+<span class="fc" id="L60">        this.receivedAt = receivedAt;</span>
+<span class="fc" id="L61">    }</span>
+
+    public InboxEventEntity(
+            String provider,
+            String providerEventId,
+            UUID orderId,
+            String payload,
+            boolean signatureValid,
+            Instant receivedAt) {
+<span class="fc" id="L70">        this(provider, providerEventId, payload, signatureValid, receivedAt);</span>
+<span class="fc" id="L71">        this.orderId = orderId;</span>
+<span class="fc" id="L72">    }</span>
+
+    /** Records the processing result. */
+    public void markProcessed(InboxOutcome outcome, Instant processedAt) {
+<span class="fc" id="L76">        this.outcome = outcome;</span>
+<span class="fc" id="L77">        this.processedAt = processedAt;</span>
+<span class="fc" id="L78">    }</span>
+
+    public Long getId() {
+<span class="fc" id="L81">        return id;</span>
+    }
+
+    public UUID getOrderId() {
+<span class="nc" id="L85">        return orderId;</span>
+    }
+
+    public String getProvider() {
+<span class="fc" id="L89">        return provider;</span>
+    }
+
+    public String getProviderEventId() {
+<span class="fc" id="L93">        return providerEventId;</span>
+    }
+
+    public String getPayload() {
+<span class="fc" id="L97">        return payload;</span>
+    }
+
+    public boolean isSignatureValid() {
+<span class="fc" id="L101">        return signatureValid;</span>
+    }
+
+    public Instant getReceivedAt() {
+<span class="fc" id="L105">        return receivedAt;</span>
+    }
+
+    public Instant getProcessedAt() {
+<span class="fc" id="L109">        return processedAt;</span>
+    }
+
+    public InboxOutcome getOutcome() {
+<span class="fc" id="L113">        return outcome;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

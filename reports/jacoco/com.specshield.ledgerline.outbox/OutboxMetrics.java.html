@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OutboxMetrics.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.outbox</a> &gt; <span class="el_source">OutboxMetrics.java</span></div><h1>OutboxMetrics.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.outbox;
+
+import com.specshield.ledgerline.application.OutboxStatus;
+import com.specshield.ledgerline.application.OutboxStore;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Timer;
+import java.time.Clock;
+import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+/**
+ * Outbox metrics. Prometheus names: gauges {@code ledgerline_outbox_pending} and
+ * {@code ledgerline_outbox_oldest_pending_age_seconds} (0 when nothing is pending); counters
+ * {@code ledgerline_outbox_delivered_total}, {@code ledgerline_outbox_failed_total{reason}},
+ * {@code ledgerline_outbox_dead_total}, {@code ledgerline_outbox_watchdog_released_total}; timer
+ * {@code ledgerline_outbox_delivery_seconds{outcome}} (HTTP latency of each attempt).
+ *
+ * &lt;p&gt;The gauges query the database when scraped (two indexed queries); a failing query reports NaN rather than
+ * breaking the scrape.
+ */
+@Component
+public class OutboxMetrics {
+
+<span class="fc" id="L28">    private static final Logger log = LoggerFactory.getLogger(OutboxMetrics.class);</span>
+
+    private final MeterRegistry registry;
+    private final Counter delivered;
+    private final Counter dead;
+    private final Counter released;
+
+<span class="fc" id="L35">    public OutboxMetrics(MeterRegistry registry, OutboxStore store, Clock clock) {</span>
+<span class="fc" id="L36">        this.registry = registry;</span>
+<span class="fc" id="L37">        this.delivered = Counter.builder(&quot;ledgerline.outbox.delivered&quot;)</span>
+<span class="fc" id="L38">                .description(&quot;Outbox rows delivered (2xx)&quot;)</span>
+<span class="fc" id="L39">                .register(registry);</span>
+<span class="fc" id="L40">        this.dead = Counter.builder(&quot;ledgerline.outbox.dead&quot;)</span>
+<span class="fc" id="L41">                .description(&quot;Outbox rows that ran out of attempts&quot;)</span>
+<span class="fc" id="L42">                .register(registry);</span>
+<span class="fc" id="L43">        this.released = Counter.builder(&quot;ledgerline.outbox.watchdog.released&quot;)</span>
+<span class="fc" id="L44">                .description(&quot;IN_FLIGHT rows returned to PENDING by the watchdog&quot;)</span>
+<span class="fc" id="L45">                .register(registry);</span>
+<span class="fc" id="L46">        Gauge.builder(&quot;ledgerline.outbox.pending&quot;, store, s -&gt; safely(() -&gt; s.countByStatus(OutboxStatus.PENDING)))</span>
+<span class="fc" id="L47">                .description(&quot;Outbox rows waiting for delivery or retry&quot;)</span>
+<span class="fc" id="L48">                .register(registry);</span>
+<span class="fc" id="L49">        Gauge.builder(</span>
+                        &quot;ledgerline.outbox.oldest.pending.age&quot;,
+                        store,
+<span class="fc" id="L52">                        s -&gt; safely(() -&gt; s.oldestPendingCreatedAt()</span>
+<span class="fc" id="L53">                                .map(t -&gt; Duration.between(t, clock.instant()).toMillis() / 1000.0)</span>
+<span class="fc" id="L54">                                .orElse(0.0)))</span>
+<span class="fc" id="L55">                .description(&quot;Age of the oldest PENDING row&quot;)</span>
+<span class="fc" id="L56">                .baseUnit(&quot;seconds&quot;)</span>
+<span class="fc" id="L57">                .register(registry);</span>
+<span class="fc" id="L58">    }</span>
+
+    void delivered(Duration latency) {
+<span class="fc" id="L61">        delivered.increment();</span>
+<span class="fc" id="L62">        timer(&quot;delivered&quot;).record(latency);</span>
+<span class="fc" id="L63">    }</span>
+
+    void failed(String reason, Duration latency) {
+<span class="fc" id="L66">        registry.counter(&quot;ledgerline.outbox.failed&quot;, &quot;reason&quot;, reason).increment();</span>
+<span class="fc" id="L67">        timer(&quot;failed&quot;).record(latency);</span>
+<span class="fc" id="L68">    }</span>
+
+    void dead() {
+<span class="fc" id="L71">        dead.increment();</span>
+<span class="fc" id="L72">    }</span>
+
+    void released(int rows) {
+<span class="fc" id="L75">        released.increment(rows);</span>
+<span class="fc" id="L76">    }</span>
+
+    private Timer timer(String outcome) {
+<span class="fc" id="L79">        return Timer.builder(&quot;ledgerline.outbox.delivery&quot;)</span>
+<span class="fc" id="L80">                .description(&quot;HTTP latency of one delivery attempt&quot;)</span>
+<span class="fc" id="L81">                .tag(&quot;outcome&quot;, outcome)</span>
+<span class="fc" id="L82">                .register(registry);</span>
+    }
+
+    private interface Query {
+        double get();
+    }
+
+    private static double safely(Query query) {
+        try {
+<span class="fc" id="L91">            return query.get();</span>
+<span class="fc" id="L92">        } catch (RuntimeException e) {</span>
+<span class="fc" id="L93">            log.warn(&quot;outbox gauge query failed: {}&quot;, e.getClass().getSimpleName());</span>
+<span class="fc" id="L94">            return Double.NaN;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

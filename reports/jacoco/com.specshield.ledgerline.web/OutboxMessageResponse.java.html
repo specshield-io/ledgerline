@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OutboxMessageResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">OutboxMessageResponse.java</span></div><h1>OutboxMessageResponse.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.application.OutboxMessage;
+import com.specshield.ledgerline.application.OutboxStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
+import java.util.UUID;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+@Schema(name = &quot;OutboxMessage&quot;, description = &quot;A merchant notification in the transactional outbox&quot;)
+<span class="fc" id="L12">public record OutboxMessageResponse(</span>
+        @Schema(description = &quot;Outbox id; sent to the merchant as Ledgerline-Event-Id&quot;)
+        long id,
+
+        @Schema(description = &quot;The order the notification is about&quot;)
+        UUID aggregateId,
+
+        @Schema(example = &quot;order.paid&quot;) String eventType,
+
+        @Schema(description = &quot;Notification data&quot;, implementation = Object.class, types = &quot;object&quot;)
+        JsonNode payload,
+
+        OutboxStatus status,
+
+        @Schema(description = &quot;Delivery attempts made so far&quot;)
+        int attempts,
+
+        @Schema(description = &quot;When the next attempt is due (PENDING)&quot;)
+        Instant nextAttemptAt,
+
+        @Schema(nullable = true, description = &quot;Error of the last failed attempt&quot;)
+        String lastError,
+
+        Instant createdAt,
+        @Schema(nullable = true) Instant deliveredAt) {
+
+    static OutboxMessageResponse from(OutboxMessage m, JsonMapper json) {
+<span class="fc" id="L39">        return new OutboxMessageResponse(</span>
+<span class="fc" id="L40">                m.id(),</span>
+<span class="fc" id="L41">                m.aggregateId(),</span>
+<span class="fc" id="L42">                m.eventType(),</span>
+<span class="fc" id="L43">                json.readTree(m.payloadJson()),</span>
+<span class="fc" id="L44">                m.status(),</span>
+<span class="fc" id="L45">                m.attempts(),</span>
+<span class="fc" id="L46">                m.nextAttemptAt(),</span>
+<span class="fc" id="L47">                m.lastError(),</span>
+<span class="fc" id="L48">                m.createdAt(),</span>
+<span class="fc" id="L49">                m.deliveredAt());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

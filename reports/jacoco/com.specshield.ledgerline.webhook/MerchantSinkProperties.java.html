@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MerchantSinkProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.webhook</a> &gt; <span class="el_source">MerchantSinkProperties.java</span></div><h1>MerchantSinkProperties.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.webhook;
+
+import java.time.Duration;
+import java.util.List;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * The built-in demo merchant that receives outbox notifications.
+ *
+ * @param enabled expose {@code POST /demo/merchant-sink}; off in prod
+ * @param secrets secrets accepted for {@code Ledgerline-Signature} (the relay's signing secrets)
+ * @param tolerance maximum difference between the signature timestamp and our clock
+ * @param capacity deliveries kept in memory for inspection
+ */
+@ConfigurationProperties(&quot;ledgerline.merchant.sink&quot;)
+public record MerchantSinkProperties(boolean enabled, List&lt;String&gt; secrets, Duration tolerance, int capacity) {
+
+<span class="fc" id="L18">    public MerchantSinkProperties {</span>
+<span class="fc bfc" id="L19" title="All 2 branches covered.">        secrets = secrets == null ? List.of() : List.copyOf(secrets);</span>
+<span class="pc bpc" id="L20" title="1 of 2 branches missed.">        tolerance = tolerance == null ? Duration.ofSeconds(300) : tolerance;</span>
+<span class="fc bfc" id="L21" title="All 2 branches covered.">        capacity = capacity &lt;= 0 ? 500 : capacity;</span>
+<span class="fc" id="L22">    }</span>
+
+    @Override
+    public String toString() {
+<span class="fc" id="L26">        return &quot;MerchantSinkProperties[enabled=&quot; + enabled + &quot;, secrets=&lt;&quot; + secrets.size() + &quot; redacted&gt;, tolerance=&quot;</span>
+                + tolerance + &quot;, capacity=&quot; + capacity + &quot;]&quot;;
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

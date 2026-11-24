@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JdbcDemoDataStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.persistence</a> &gt; <span class="el_source">JdbcDemoDataStore.java</span></div><h1>JdbcDemoDataStore.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.persistence;
+
+import com.specshield.ledgerline.application.DemoDataStore;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+@Repository
+public class JdbcDemoDataStore implements DemoDataStore {
+
+    private final JdbcClient jdbc;
+
+<span class="fc" id="L12">    JdbcDemoDataStore(JdbcClient jdbc) {</span>
+<span class="fc" id="L13">        this.jdbc = jdbc;</span>
+<span class="fc" id="L14">    }</span>
+
+    @Override
+    public void truncateDemoTables() {
+        // One statement, so there is no window with some tables empty and others not. TRUNCATE is transactional in
+        // PostgreSQL: readers see the old data until the reset commits.
+<span class="fc" id="L20">        jdbc.sql(&quot;TRUNCATE orders, order_events_inbox, audit_log, outbox, mockpay_ledger RESTART IDENTITY&quot;)</span>
+<span class="fc" id="L21">                .update();</span>
+<span class="fc" id="L22">    }</span>
+
+    @Override
+    public long countOrders() {
+<span class="fc" id="L26">        return jdbc.sql(&quot;SELECT count(*) FROM orders&quot;).query(Long.class).single();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

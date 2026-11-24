@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DemoDataService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.application</a> &gt; <span class="el_source">DemoDataService.java</span></div><h1>DemoDataService.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.application;
+
+import com.specshield.ledgerline.domain.Money;
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderIds;
+import com.specshield.ledgerline.domain.OrderStatus;
+import com.specshield.ledgerline.domain.OrderStore;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * The public demo's synthetic data: 25 orders across every status ({@code demo-1001} to {@code demo-1025}).
+ * Deterministic apart from ids and timestamps, so a reset always produces the same picture. Callers serialise runs
+ * with a lock ({@code demo.DemoReset}); this class only guarantees that each run is one transaction.
+ */
+@Service
+public class DemoDataService {
+
+    public static final String MERCHANT_REF_PREFIX = &quot;demo-&quot;;
+    public static final int SEEDED_ORDERS = 25;
+    static final String SEEDER_ACTOR = &quot;system:demo-seeder&quot;;
+
+    /** One seeded order: status, amount, refunded amount. */
+<span class="fc" id="L32">    record Seed(OrderStatus status, long amountMinor, long refundedMinor) {}</span>
+
+<span class="fc" id="L34">    static final List&lt;Seed&gt; SEEDS = List.of(</span>
+            new Seed(OrderStatus.CREATED, 1_299, 0),
+            new Seed(OrderStatus.PAID, 4_599, 0),
+            new Seed(OrderStatus.PAID, 2_350, 0),
+            new Seed(OrderStatus.PARTIALLY_REFUNDED, 18_900, 4_500),
+            new Seed(OrderStatus.CREATED, 799, 0),
+            new Seed(OrderStatus.PAYMENT_PENDING, 12_999, 0),
+            new Seed(OrderStatus.PAID, 3_450, 0),
+            new Seed(OrderStatus.CANCELLED, 999, 0),
+            new Seed(OrderStatus.PAYMENT_FAILED, 6_400, 0),
+            new Seed(OrderStatus.REFUNDED, 25_000, 25_000),
+            new Seed(OrderStatus.PAID, 1_575, 0),
+            new Seed(OrderStatus.CREATED, 8_999, 0),
+            new Seed(OrderStatus.PAYMENT_PENDING, 4_200, 0),
+            new Seed(OrderStatus.PARTIALLY_REFUNDED, 15_750, 2_000),
+            new Seed(OrderStatus.PAID, 2_999, 0),
+            new Seed(OrderStatus.CANCELLED, 560, 0),
+            new Seed(OrderStatus.PAYMENT_FAILED, 7_325, 0),
+            new Seed(OrderStatus.PAID, 11_000, 0),
+            new Seed(OrderStatus.CREATED, 3_999, 0),
+            new Seed(OrderStatus.REFUNDED, 2_150, 2_150),
+            new Seed(OrderStatus.PAYMENT_PENDING, 9_450, 0),
+            new Seed(OrderStatus.PAID, 1_899, 0),
+            new Seed(OrderStatus.PARTIALLY_REFUNDED, 32_000, 8_000),
+            new Seed(OrderStatus.PAYMENT_FAILED, 4_875, 0),
+            new Seed(OrderStatus.CANCELLED, 1_250, 0));
+
+    private final DemoDataStore store;
+    private final OrderStore orders;
+    private final AuditTrail audit;
+    private final OrderIds ids;
+    private final Clock clock;
+    private final JsonMapper json;
+
+    public DemoDataService(
+<span class="fc" id="L69">            DemoDataStore store, OrderStore orders, AuditTrail audit, OrderIds ids, Clock clock, JsonMapper json) {</span>
+<span class="fc" id="L70">        this.store = store;</span>
+<span class="fc" id="L71">        this.orders = orders;</span>
+<span class="fc" id="L72">        this.audit = audit;</span>
+<span class="fc" id="L73">        this.ids = ids;</span>
+<span class="fc" id="L74">        this.clock = clock;</span>
+<span class="fc" id="L75">        this.json = json;</span>
+<span class="fc" id="L76">    }</span>
+
+    /** Wipes the demo tables and seeds them again; records a DEMO_RESET audit row naming {@code actor}. */
+    @Transactional
+    public int reset(String actor) {
+<span class="fc" id="L81">        store.truncateDemoTables();</span>
+<span class="fc" id="L82">        int seeded = seed();</span>
+<span class="fc" id="L83">        audit.append(new AuditRecord(</span>
+                null,
+                null,
+                &quot;DEMO_RESET&quot;,
+<span class="fc" id="L87">                json.writeValueAsString(Map.of(&quot;seededOrders&quot;, seeded)),</span>
+                actor,
+                null,
+<span class="fc" id="L90">                clock.instant()));</span>
+<span class="fc" id="L91">        return seeded;</span>
+    }
+
+    /** Seeds only when there are no orders at all. Returns the number of orders seeded (0 or 25). */
+    @Transactional
+    public int seedIfEmpty() {
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        return store.countOrders() == 0 ? seed() : 0;</span>
+    }
+
+    private int seed() {
+<span class="fc" id="L101">        Instant now = clock.instant().truncatedTo(ChronoUnit.MICROS);</span>
+<span class="fc bfc" id="L102" title="All 2 branches covered.">        for (int i = 0; i &lt; SEEDS.size(); i++) {</span>
+<span class="fc" id="L103">            Seed seed = SEEDS.get(i);</span>
+            // Spread over the last ~3 days, oldest first, so the list looks like real traffic.
+<span class="fc" id="L105">            Instant created = now.minus(Duration.ofMinutes(173L * (SEEDS.size() - i)));</span>
+<span class="fc" id="L106">            long sequence = sequenceFor(seed.status());</span>
+<span class="fc bfc" id="L107" title="All 4 branches covered.">            Instant updated = sequence == 0 &amp;&amp; seed.status() == OrderStatus.CREATED</span>
+<span class="fc" id="L108">                    ? created</span>
+<span class="fc" id="L109">                    : created.plus(Duration.ofMinutes(4));</span>
+<span class="fc" id="L110">            Order order = orders.insert(new Order(</span>
+<span class="fc" id="L111">                    ids.next(),</span>
+                    MERCHANT_REF_PREFIX + (1001 + i),
+<span class="fc" id="L113">                    seed.amountMinor(),</span>
+                    Money.USD,
+<span class="fc" id="L115">                    seed.status(),</span>
+<span class="fc" id="L116">                    seed.refundedMinor(),</span>
+                    sequence,
+                    0,
+                    created,
+                    updated,
+<span class="fc bfc" id="L121" title="All 2 branches covered.">                    sequence == 0 ? null : updated));</span>
+<span class="fc" id="L122">            Map&lt;String, Object&gt; detail = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L123">            detail.put(&quot;status&quot;, order.status().name());</span>
+<span class="fc" id="L124">            detail.put(&quot;amountMinor&quot;, order.amountMinor());</span>
+<span class="fc" id="L125">            detail.put(&quot;synthetic&quot;, true);</span>
+<span class="fc" id="L126">            audit.append(new AuditRecord(</span>
+<span class="fc" id="L127">                    null, order.id(), &quot;DEMO_SEEDED&quot;, json.writeValueAsString(detail), SEEDER_ACTOR, null, created));</span>
+        }
+<span class="fc" id="L129">        return SEEDS.size();</span>
+    }
+
+    /** The provider sequence an order in this status would have reached through MockPay. */
+    static long sequenceFor(OrderStatus status) {
+<span class="fc bfc" id="L134" title="All 4 branches covered.">        return switch (status) {</span>
+<span class="fc" id="L135">            case CREATED, CANCELLED -&gt; 0;</span>
+<span class="fc" id="L136">            case PAYMENT_PENDING -&gt; 1;</span>
+<span class="fc" id="L137">            case PAID, PAYMENT_FAILED -&gt; 2;</span>
+<span class="fc" id="L138">            case PARTIALLY_REFUNDED, REFUNDED -&gt; 3;</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

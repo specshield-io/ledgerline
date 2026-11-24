@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JdbcOutboxStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.persistence</a> &gt; <span class="el_source">JdbcOutboxStore.java</span></div><h1>JdbcOutboxStore.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.persistence;
+
+import com.specshield.ledgerline.application.Outbox;
+import com.specshield.ledgerline.application.OutboxMessage;
+import com.specshield.ledgerline.application.OutboxStatus;
+import com.specshield.ledgerline.application.OutboxStore;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
+
+/**
+ * The outbox table with plain SQL. {@link #append} joins the caller's transaction (JpaTransactionManager shares the
+ * connection), so the row commits atomically with the state change. The relay methods run in their own short
+ * transactions.
+ */
+@Repository
+public class JdbcOutboxStore implements Outbox, OutboxStore {
+
+    /** The database constraint outbox_last_error_bounded enforces the same limit. */
+    public static final int MAX_ERROR_LENGTH = 500;
+
+    private static final String COLUMNS = &quot;&quot;&quot;
+            id, aggregate_id, event_type, payload::text AS payload, status, attempts, next_attempt_at, last_error,
+            created_at, delivered_at, claimed_at&quot;&quot;&quot;;
+
+    private final JdbcClient jdbc;
+
+<span class="fc" id="L36">    JdbcOutboxStore(JdbcClient jdbc) {</span>
+<span class="fc" id="L37">        this.jdbc = jdbc;</span>
+<span class="fc" id="L38">    }</span>
+
+    @Override
+    public void append(UUID aggregateId, String eventType, String payloadJson, Instant now) {
+<span class="fc" id="L42">        jdbc.sql(&quot;&quot;&quot;</span>
+                        INSERT INTO outbox (aggregate_id, event_type, payload, status, attempts, next_attempt_at, created_at)
+                        VALUES (:aggregateId, :eventType, CAST(:payload AS jsonb), 'PENDING', 0, :now, :now)
+                        &quot;&quot;&quot;)
+<span class="fc" id="L46">                .param(&quot;aggregateId&quot;, aggregateId)</span>
+<span class="fc" id="L47">                .param(&quot;eventType&quot;, eventType)</span>
+<span class="fc" id="L48">                .param(&quot;payload&quot;, payloadJson)</span>
+<span class="fc" id="L49">                .param(&quot;now&quot;, Timestamp.from(now))</span>
+<span class="fc" id="L50">                .update();</span>
+<span class="fc" id="L51">    }</span>
+
+    @Override
+    @Transactional
+    public List&lt;OutboxMessage&gt; claimDue(int limit, Instant now) {
+        // SKIP LOCKED: concurrent dispatchers each take different rows instead of waiting for one another.
+<span class="fc" id="L57">        return jdbc</span>
+<span class="fc" id="L58">                .sql(&quot;&quot;&quot;</span>
+                        UPDATE outbox SET status = 'IN_FLIGHT', claimed_at = :now
+                         WHERE id IN (SELECT id FROM outbox
+                                       WHERE status = 'PENDING' AND next_attempt_at &lt;= :now
+                                       ORDER BY id
+                                       LIMIT :limit
+                                       FOR UPDATE SKIP LOCKED)
+                        RETURNING\s&quot;&quot;&quot; + COLUMNS)
+<span class="fc" id="L66">                .param(&quot;now&quot;, Timestamp.from(now))</span>
+<span class="fc" id="L67">                .param(&quot;limit&quot;, limit)</span>
+<span class="fc" id="L68">                .query(JdbcOutboxStore::map)</span>
+<span class="fc" id="L69">                .list()</span>
+<span class="fc" id="L70">                .stream()</span>
+<span class="fc" id="L71">                .sorted(Comparator.comparingLong(OutboxMessage::id))</span>
+<span class="fc" id="L72">                .toList();</span>
+    }
+
+    @Override
+    public boolean markDelivered(long id, Instant claimedAt, Instant deliveredAt) {
+<span class="fc" id="L77">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        UPDATE outbox SET status = 'DELIVERED', attempts = attempts + 1, delivered_at = :at,
+                                          last_error = NULL, claimed_at = NULL
+                         WHERE id = :id AND status = 'IN_FLIGHT' AND claimed_at = :claimedAt
+                        &quot;&quot;&quot;)
+<span class="fc" id="L82">                        .param(&quot;id&quot;, id)</span>
+<span class="fc" id="L83">                        .param(&quot;claimedAt&quot;, Timestamp.from(claimedAt))</span>
+<span class="fc" id="L84">                        .param(&quot;at&quot;, Timestamp.from(deliveredAt))</span>
+<span class="fc bfc" id="L85" title="All 2 branches covered.">                        .update()</span>
+                == 1;
+    }
+
+    @Override
+    public boolean markRetry(long id, Instant claimedAt, String error, Instant nextAttemptAt) {
+<span class="fc" id="L91">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        UPDATE outbox SET status = 'PENDING', attempts = attempts + 1, last_error = :error,
+                                          next_attempt_at = :next, claimed_at = NULL
+                         WHERE id = :id AND status = 'IN_FLIGHT' AND claimed_at = :claimedAt
+                        &quot;&quot;&quot;)
+<span class="fc" id="L96">                        .param(&quot;id&quot;, id)</span>
+<span class="fc" id="L97">                        .param(&quot;claimedAt&quot;, Timestamp.from(claimedAt))</span>
+<span class="fc" id="L98">                        .param(&quot;error&quot;, truncate(error))</span>
+<span class="fc" id="L99">                        .param(&quot;next&quot;, Timestamp.from(nextAttemptAt))</span>
+<span class="pc bpc" id="L100" title="1 of 2 branches missed.">                        .update()</span>
+                == 1;
+    }
+
+    @Override
+    public boolean markDead(long id, Instant claimedAt, String error) {
+<span class="fc" id="L106">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        UPDATE outbox SET status = 'DEAD', attempts = attempts + 1, last_error = :error,
+                                          claimed_at = NULL
+                         WHERE id = :id AND status = 'IN_FLIGHT' AND claimed_at = :claimedAt
+                        &quot;&quot;&quot;)
+<span class="fc" id="L111">                        .param(&quot;id&quot;, id)</span>
+<span class="fc" id="L112">                        .param(&quot;claimedAt&quot;, Timestamp.from(claimedAt))</span>
+<span class="fc" id="L113">                        .param(&quot;error&quot;, truncate(error))</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">                        .update()</span>
+                == 1;
+    }
+
+    @Override
+    public int releaseStuck(Instant claimedBefore, String reason, Instant now) {
+<span class="fc" id="L120">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        UPDATE outbox SET status = 'PENDING', claimed_at = NULL, next_attempt_at = :now,
+                                          last_error = :reason
+                         WHERE status = 'IN_FLIGHT' AND claimed_at &lt; :before
+                        &quot;&quot;&quot;)
+<span class="fc" id="L125">                .param(&quot;before&quot;, Timestamp.from(claimedBefore))</span>
+<span class="fc" id="L126">                .param(&quot;reason&quot;, truncate(reason))</span>
+<span class="fc" id="L127">                .param(&quot;now&quot;, Timestamp.from(now))</span>
+<span class="fc" id="L128">                .update();</span>
+    }
+
+    @Override
+    public long countByStatus(OutboxStatus status) {
+<span class="fc" id="L133">        return jdbc.sql(&quot;SELECT count(*) FROM outbox WHERE status = :status&quot;)</span>
+<span class="fc" id="L134">                .param(&quot;status&quot;, status.name())</span>
+<span class="fc" id="L135">                .query(Long.class)</span>
+<span class="fc" id="L136">                .single();</span>
+    }
+
+    @Override
+    public Optional&lt;Instant&gt; oldestPendingCreatedAt() {
+<span class="fc" id="L141">        return jdbc.sql(&quot;SELECT created_at FROM outbox WHERE status = 'PENDING' ORDER BY id LIMIT 1&quot;)</span>
+<span class="fc" id="L142">                .query((rs, n) -&gt; rs.getTimestamp(1).toInstant())</span>
+<span class="fc" id="L143">                .optional();</span>
+    }
+
+    @Override
+    public OutboxPage page(Optional&lt;OutboxStatus&gt; status, int page, int size) {
+<span class="fc bfc" id="L148" title="All 2 branches covered.">        String where = status.isPresent() ? &quot; WHERE status = :status&quot; : &quot;&quot;;</span>
+<span class="fc" id="L149">        String statusName = status.map(Enum::name).orElse(null);</span>
+<span class="fc" id="L150">        var count = jdbc.sql(&quot;SELECT count(*) FROM outbox&quot; + where);</span>
+<span class="fc" id="L151">        var select = jdbc.sql(</span>
+                        &quot;SELECT &quot; + COLUMNS + &quot; FROM outbox&quot; + where + &quot; ORDER BY id DESC LIMIT :size OFFSET :offset&quot;)
+<span class="fc" id="L153">                .param(&quot;size&quot;, size)</span>
+<span class="fc" id="L154">                .param(&quot;offset&quot;, (long) page * size);</span>
+<span class="fc bfc" id="L155" title="All 2 branches covered.">        if (statusName != null) {</span>
+<span class="fc" id="L156">            count = count.param(&quot;status&quot;, statusName);</span>
+<span class="fc" id="L157">            select = select.param(&quot;status&quot;, statusName);</span>
+        }
+<span class="fc" id="L159">        long total = count.query(Long.class).single();</span>
+<span class="fc" id="L160">        List&lt;OutboxMessage&gt; items = select.query(JdbcOutboxStore::map).list();</span>
+<span class="fc" id="L161">        int totalPages = (int) ((total + size - 1) / size);</span>
+<span class="fc" id="L162">        return new OutboxPage(items, page, size, total, totalPages);</span>
+    }
+
+    @Override
+    public List&lt;OutboxMessage&gt; forAggregate(UUID aggregateId) {
+<span class="fc" id="L167">        return jdbc.sql(&quot;SELECT &quot; + COLUMNS + &quot; FROM outbox WHERE aggregate_id = :id ORDER BY id&quot;)</span>
+<span class="fc" id="L168">                .param(&quot;id&quot;, aggregateId)</span>
+<span class="fc" id="L169">                .query(JdbcOutboxStore::map)</span>
+<span class="fc" id="L170">                .list();</span>
+    }
+
+    @Override
+    public Optional&lt;OutboxMessage&gt; findByIdForUpdate(long id) {
+<span class="fc" id="L175">        return jdbc.sql(&quot;SELECT &quot; + COLUMNS + &quot; FROM outbox WHERE id = :id FOR UPDATE&quot;)</span>
+<span class="fc" id="L176">                .param(&quot;id&quot;, id)</span>
+<span class="fc" id="L177">                .query(JdbcOutboxStore::map)</span>
+<span class="fc" id="L178">                .optional();</span>
+    }
+
+    @Override
+    public void requeue(long id, Instant now) {
+<span class="fc" id="L183">        jdbc.sql(&quot;&quot;&quot;</span>
+                        UPDATE outbox SET status = 'PENDING', attempts = 0, next_attempt_at = :now, last_error = NULL,
+                                          claimed_at = NULL
+                         WHERE id = :id AND status = 'DEAD'
+<span class="fc" id="L187">                        &quot;&quot;&quot;).param(&quot;id&quot;, id).param(&quot;now&quot;, Timestamp.from(now)).update();</span>
+<span class="fc" id="L188">    }</span>
+
+    static String truncate(String error) {
+<span class="fc bfc" id="L191" title="All 4 branches covered.">        if (error == null || error.length() &lt;= MAX_ERROR_LENGTH) {</span>
+<span class="fc" id="L192">            return error;</span>
+        }
+<span class="fc" id="L194">        return error.substring(0, MAX_ERROR_LENGTH);</span>
+    }
+
+    private static OutboxMessage map(ResultSet rs, int row) throws SQLException {
+<span class="fc" id="L198">        return new OutboxMessage(</span>
+<span class="fc" id="L199">                rs.getLong(&quot;id&quot;),</span>
+<span class="fc" id="L200">                rs.getObject(&quot;aggregate_id&quot;, UUID.class),</span>
+<span class="fc" id="L201">                rs.getString(&quot;event_type&quot;),</span>
+<span class="fc" id="L202">                rs.getString(&quot;payload&quot;),</span>
+<span class="fc" id="L203">                OutboxStatus.valueOf(rs.getString(&quot;status&quot;)),</span>
+<span class="fc" id="L204">                rs.getInt(&quot;attempts&quot;),</span>
+<span class="fc" id="L205">                instant(rs, &quot;next_attempt_at&quot;),</span>
+<span class="fc" id="L206">                rs.getString(&quot;last_error&quot;),</span>
+<span class="fc" id="L207">                instant(rs, &quot;created_at&quot;),</span>
+<span class="fc" id="L208">                instant(rs, &quot;delivered_at&quot;),</span>
+<span class="fc" id="L209">                instant(rs, &quot;claimed_at&quot;));</span>
+    }
+
+    private static Instant instant(ResultSet rs, String column) throws SQLException {
+<span class="fc" id="L213">        Timestamp t = rs.getTimestamp(column);</span>
+<span class="fc bfc" id="L214" title="All 2 branches covered.">        return t == null ? null : t.toInstant();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

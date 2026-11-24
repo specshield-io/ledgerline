@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProblemResponses.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">ProblemResponses.java</span></div><h1>ProblemResponses.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.application.OrderService;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.net.URI;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Builds problem details and writes them where Spring MVC is not involved (servlet filters, Spring Security,
+ * the error page), so every error response has the same shape.
+ */
+@Component
+public class ProblemResponses {
+
+    static final String CORRELATION_ID_PROPERTY = &quot;correlationId&quot;;
+
+    private final JsonMapper json;
+
+<span class="fc" id="L28">    public ProblemResponses(JsonMapper json) {</span>
+<span class="fc" id="L29">        this.json = json;</span>
+<span class="fc" id="L30">    }</span>
+
+    /** A problem with every RFC 9457 member set, plus the correlation id. */
+    public static ProblemDetail problem(HttpStatus status, URI type, String title, String detail, String instance) {
+<span class="fc" id="L34">        ProblemDetail problem = ProblemDetail.forStatusAndDetail(status, detail);</span>
+<span class="fc" id="L35">        problem.setType(type);</span>
+<span class="fc" id="L36">        problem.setTitle(title);</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        if (instance != null) {</span>
+<span class="fc" id="L38">            problem.setInstance(URI.create(instance));</span>
+        }
+<span class="fc" id="L40">        String correlationId = MDC.get(OrderService.CORRELATION_ID_MDC_KEY);</span>
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        if (correlationId != null) {</span>
+<span class="fc" id="L42">            problem.setProperty(CORRELATION_ID_PROPERTY, correlationId);</span>
+        }
+<span class="fc" id="L44">        return problem;</span>
+    }
+
+    public void write(HttpServletRequest request, HttpServletResponse response, ProblemDetail problem)
+            throws IOException {
+<span class="pc bpc" id="L49" title="1 of 2 branches missed.">        if (problem.getInstance() == null) {</span>
+<span class="fc" id="L50">            problem.setInstance(URI.create(request.getRequestURI()));</span>
+        }
+<span class="fc" id="L52">        Map&lt;String, Object&gt; body = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L53">        body.put(&quot;type&quot;, problem.getType().toString());</span>
+<span class="fc" id="L54">        body.put(&quot;title&quot;, problem.getTitle());</span>
+<span class="fc" id="L55">        body.put(&quot;status&quot;, problem.getStatus());</span>
+<span class="fc" id="L56">        body.put(&quot;detail&quot;, problem.getDetail());</span>
+<span class="fc" id="L57">        body.put(&quot;instance&quot;, problem.getInstance().toString());</span>
+<span class="pc bpc" id="L58" title="1 of 2 branches missed.">        if (problem.getProperties() != null) {</span>
+<span class="fc" id="L59">            body.putAll(problem.getProperties());</span>
+        }
+<span class="fc" id="L61">        response.setStatus(problem.getStatus());</span>
+<span class="fc" id="L62">        response.setContentType(MediaType.APPLICATION_PROBLEM_JSON_VALUE);</span>
+<span class="fc" id="L63">        response.setCharacterEncoding(&quot;UTF-8&quot;);</span>
+<span class="fc" id="L64">        response.getOutputStream().write(json.writeValueAsBytes(body));</span>
+<span class="fc" id="L65">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

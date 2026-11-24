@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>JdbcPaymentInbox.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.persistence</a> &gt; <span class="el_source">JdbcPaymentInbox.java</span></div><h1>JdbcPaymentInbox.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.persistence;
+
+import com.specshield.ledgerline.application.PaymentInbox;
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.stereotype.Repository;
+
+/**
+ * Inbox access with plain SQL: {@code INSERT ... ON CONFLICT DO NOTHING RETURNING id} keeps the transaction usable
+ * when the unique constraint fires, which a JPA insert followed by a constraint violation would not (PostgreSQL
+ * aborts the transaction). Runs in the caller's transaction (JpaTransactionManager shares the connection).
+ */
+@Repository
+public class JdbcPaymentInbox implements PaymentInbox {
+
+    private final JdbcClient jdbc;
+
+<span class="fc" id="L22">    JdbcPaymentInbox(JdbcClient jdbc) {</span>
+<span class="fc" id="L23">        this.jdbc = jdbc;</span>
+<span class="fc" id="L24">    }</span>
+
+    @Override
+    public Optional&lt;Long&gt; insertIfAbsent(
+            String provider, String providerEventId, UUID orderId, String payloadJson, Instant receivedAt) {
+<span class="fc" id="L29">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        INSERT INTO order_events_inbox (provider, provider_event_id, order_id, payload, signature_valid, received_at)
+                        VALUES (:provider, :eventId, :orderId, CAST(:payload AS jsonb), true, :receivedAt)
+                        ON CONFLICT (provider, provider_event_id) DO NOTHING
+                        RETURNING id
+                        &quot;&quot;&quot;)
+<span class="fc" id="L35">                .param(&quot;provider&quot;, provider)</span>
+<span class="fc" id="L36">                .param(&quot;eventId&quot;, providerEventId)</span>
+<span class="fc" id="L37">                .param(&quot;orderId&quot;, orderId)</span>
+<span class="fc" id="L38">                .param(&quot;payload&quot;, payloadJson)</span>
+<span class="fc" id="L39">                .param(&quot;receivedAt&quot;, Timestamp.from(receivedAt))</span>
+<span class="fc" id="L40">                .query(Long.class)</span>
+<span class="fc" id="L41">                .optional();</span>
+    }
+
+    @Override
+    public void insertRejected(String provider, String syntheticEventId, String detailJson, Instant receivedAt) {
+<span class="fc" id="L46">        jdbc.sql(&quot;&quot;&quot;</span>
+                        INSERT INTO order_events_inbox
+                            (provider, provider_event_id, payload, signature_valid, received_at, processed_at, outcome)
+                        VALUES (:provider, :eventId, CAST(:payload AS jsonb), false, :at, :at, 'REJECTED')
+                        &quot;&quot;&quot;)
+<span class="fc" id="L51">                .param(&quot;provider&quot;, provider)</span>
+<span class="fc" id="L52">                .param(&quot;eventId&quot;, syntheticEventId)</span>
+<span class="fc" id="L53">                .param(&quot;payload&quot;, detailJson)</span>
+<span class="fc" id="L54">                .param(&quot;at&quot;, Timestamp.from(receivedAt))</span>
+<span class="fc" id="L55">                .update();</span>
+<span class="fc" id="L56">    }</span>
+
+    @Override
+    public List&lt;PendingEvent&gt; pendingForOrder(UUID orderId) {
+<span class="fc" id="L60">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        SELECT id, provider_event_id, payload::text AS payload
+                          FROM order_events_inbox
+                         WHERE order_id = :orderId AND outcome IS NULL AND signature_valid
+                         ORDER BY id
+                        &quot;&quot;&quot;)
+<span class="fc" id="L66">                .param(&quot;orderId&quot;, orderId)</span>
+<span class="fc" id="L67">                .query((rs, n) -&gt;</span>
+<span class="fc" id="L68">                        new PendingEvent(rs.getLong(&quot;id&quot;), rs.getString(&quot;provider_event_id&quot;), rs.getString(&quot;payload&quot;)))</span>
+<span class="fc" id="L69">                .list();</span>
+    }
+
+    @Override
+    public void markProcessed(long id, String outcome, Instant processedAt) {
+<span class="fc" id="L74">        jdbc.sql(&quot;UPDATE order_events_inbox SET outcome = :outcome, processed_at = :at WHERE id = :id&quot;)</span>
+<span class="fc" id="L75">                .param(&quot;outcome&quot;, outcome)</span>
+<span class="fc" id="L76">                .param(&quot;at&quot;, Timestamp.from(processedAt))</span>
+<span class="fc" id="L77">                .param(&quot;id&quot;, id)</span>
+<span class="fc" id="L78">                .update();</span>
+<span class="fc" id="L79">    }</span>
+
+    @Override
+    public List&lt;UUID&gt; orphanOrderIds(Instant since) {
+<span class="fc" id="L83">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        SELECT DISTINCT order_id FROM order_events_inbox
+                         WHERE outcome = 'ORPHAN' AND received_at &gt;= :since AND order_id IS NOT NULL
+                        &quot;&quot;&quot;)
+<span class="fc" id="L87">                .param(&quot;since&quot;, Timestamp.from(since))</span>
+<span class="fc" id="L88">                .query(UUID.class)</span>
+<span class="fc" id="L89">                .list();</span>
+    }
+
+    @Override
+    public int reopenOrphans(UUID orderId, Instant since) {
+<span class="fc" id="L94">        return jdbc.sql(&quot;&quot;&quot;</span>
+                        UPDATE order_events_inbox SET outcome = NULL, processed_at = NULL
+                         WHERE order_id = :orderId AND outcome = 'ORPHAN' AND received_at &gt;= :since
+                        &quot;&quot;&quot;)
+<span class="fc" id="L98">                .param(&quot;orderId&quot;, orderId)</span>
+<span class="fc" id="L99">                .param(&quot;since&quot;, Timestamp.from(since))</span>
+<span class="fc" id="L100">                .update();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

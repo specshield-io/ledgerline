@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ScenarioRun.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.chaos</a> &gt; <span class="el_source">ScenarioRun.java</span></div><h1>ScenarioRun.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.chaos;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.CopyOnWriteArrayList;
+
+/** One scenario run, kept in memory for an hour. Thread safe. */
+public final class ScenarioRun {
+
+<span class="fc" id="L11">    public enum Status {</span>
+<span class="fc" id="L12">        RUNNING,</span>
+<span class="fc" id="L13">        COMPLETED,</span>
+<span class="fc" id="L14">        FAILED</span>
+    }
+
+    /** One thing the run did, for the run view. */
+    /**
+     * @param httpStatus the webhook receiver's answer, for deliveries
+     * @param result the receiver's problem type for an error answer (e.g. {@code invalid-signature}), else null
+     */
+<span class="fc" id="L22">    public record Step(Instant at, String description, Integer httpStatus, String result) {}</span>
+
+    private final String id;
+    private final Scenario scenario;
+    private final UUID orderId;
+    private final Instant startedAt;
+    private final String correlationId;
+<span class="fc" id="L29">    private final List&lt;Step&gt; steps = new CopyOnWriteArrayList&lt;&gt;();</span>
+<span class="fc" id="L30">    private volatile Status status = Status.RUNNING;</span>
+    private volatile Instant finishedAt;
+    private volatile String orderStatusAtEnd;
+    private volatile String error;
+
+<span class="fc" id="L35">    ScenarioRun(String id, Scenario scenario, UUID orderId, Instant startedAt, String correlationId) {</span>
+<span class="fc" id="L36">        this.id = id;</span>
+<span class="fc" id="L37">        this.scenario = scenario;</span>
+<span class="fc" id="L38">        this.orderId = orderId;</span>
+<span class="fc" id="L39">        this.startedAt = startedAt;</span>
+<span class="fc" id="L40">        this.correlationId = correlationId;</span>
+<span class="fc" id="L41">    }</span>
+
+    void step(Step step) {
+<span class="fc" id="L44">        steps.add(step);</span>
+<span class="fc" id="L45">    }</span>
+
+    void complete(Instant at, String orderStatus) {
+<span class="fc" id="L48">        this.orderStatusAtEnd = orderStatus;</span>
+<span class="fc" id="L49">        this.finishedAt = at;</span>
+<span class="fc" id="L50">        this.status = Status.COMPLETED;</span>
+<span class="fc" id="L51">    }</span>
+
+    void fail(Instant at, String error) {
+<span class="nc" id="L54">        this.error = error;</span>
+<span class="nc" id="L55">        this.finishedAt = at;</span>
+<span class="nc" id="L56">        this.status = Status.FAILED;</span>
+<span class="nc" id="L57">    }</span>
+
+    public String id() {
+<span class="fc" id="L60">        return id;</span>
+    }
+
+    public Scenario scenario() {
+<span class="fc" id="L64">        return scenario;</span>
+    }
+
+    public UUID orderId() {
+<span class="fc" id="L68">        return orderId;</span>
+    }
+
+    public Instant startedAt() {
+<span class="fc" id="L72">        return startedAt;</span>
+    }
+
+    public String correlationId() {
+<span class="fc" id="L76">        return correlationId;</span>
+    }
+
+    public List&lt;Step&gt; steps() {
+<span class="fc" id="L80">        return List.copyOf(steps);</span>
+    }
+
+    public Status status() {
+<span class="fc" id="L84">        return status;</span>
+    }
+
+    public Instant finishedAt() {
+<span class="fc" id="L88">        return finishedAt;</span>
+    }
+
+    public String orderStatusAtEnd() {
+<span class="fc" id="L92">        return orderStatusAtEnd;</span>
+    }
+
+    public String error() {
+<span class="fc" id="L96">        return error;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MockPayProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.mockpay</a> &gt; <span class="el_source">MockPayProperties.java</span></div><h1>MockPayProperties.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.mockpay;
+
+import java.time.Duration;
+import java.util.List;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * The simulated payment provider. Synthetic: it never contacts a real payment network.
+ *
+ * @param enabled when false, a stub gateway is used and no webhooks are sent
+ * @param webhookUrl where events are POSTed; placeholders (e.g. {@code ${local.server.port}}) are resolved at send time
+ * @param signingSecrets secrets to sign with; two during rotation (one v1 entry each)
+ * @param defaultOutcome PAYMENT_SUCCEEDED or PAYMENT_FAILED
+ * @param minDelay lower bound of the delay before the outcome event
+ * @param maxDelay upper bound of that delay
+ * @param maxDeliveryAttempts attempts per event when the receiver answers 5xx or is unreachable
+ * @param retryBackoff first retry delay, doubled on every further attempt
+ */
+@ConfigurationProperties(&quot;ledgerline.mockpay&quot;)
+public record MockPayProperties(
+        boolean enabled,
+        String webhookUrl,
+        List&lt;String&gt; signingSecrets,
+        String defaultOutcome,
+        Duration minDelay,
+        Duration maxDelay,
+        int maxDeliveryAttempts,
+        Duration retryBackoff) {
+
+<span class="fc" id="L30">    public MockPayProperties {</span>
+<span class="pc bpc" id="L31" title="1 of 2 branches missed.">        signingSecrets = signingSecrets == null ? List.of() : List.copyOf(signingSecrets);</span>
+<span class="fc bfc" id="L32" title="All 2 branches covered.">        defaultOutcome = defaultOutcome == null ? &quot;PAYMENT_SUCCEEDED&quot; : defaultOutcome;</span>
+<span class="fc bfc" id="L33" title="All 2 branches covered.">        minDelay = minDelay == null ? Duration.ofMillis(300) : minDelay;</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        maxDelay = maxDelay == null ? Duration.ofMillis(800) : maxDelay;</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        maxDeliveryAttempts = maxDeliveryAttempts &lt;= 0 ? 5 : maxDeliveryAttempts;</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        retryBackoff = retryBackoff == null ? Duration.ofMillis(250) : retryBackoff;</span>
+<span class="pc bpc" id="L37" title="3 of 4 branches missed.">        if (!defaultOutcome.equals(&quot;PAYMENT_SUCCEEDED&quot;) &amp;&amp; !defaultOutcome.equals(&quot;PAYMENT_FAILED&quot;)) {</span>
+<span class="nc" id="L38">            throw new IllegalArgumentException(</span>
+                    &quot;ledgerline.mockpay.default-outcome must be PAYMENT_SUCCEEDED or PAYMENT_FAILED&quot;);
+        }
+<span class="pc bpc" id="L41" title="1 of 2 branches missed.">        if (maxDelay.compareTo(minDelay) &lt; 0) {</span>
+<span class="nc" id="L42">            throw new IllegalArgumentException(&quot;ledgerline.mockpay.max-delay must not be below min-delay&quot;);</span>
+        }
+<span class="fc" id="L44">    }</span>
+
+    @Override
+    public String toString() {
+<span class="nc" id="L48">        return &quot;MockPayProperties[enabled=&quot; + enabled + &quot;, webhookUrl=&quot; + webhookUrl + &quot;, signingSecrets=&lt;&quot;</span>
+<span class="nc" id="L49">                + signingSecrets.size() + &quot; redacted&gt;, defaultOutcome=&quot; + defaultOutcome + &quot;]&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

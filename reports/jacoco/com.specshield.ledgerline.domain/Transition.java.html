@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Transition.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.domain</a> &gt; <span class="el_source">Transition.java</span></div><h1>Transition.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.domain;
+
+import java.util.Objects;
+
+/** Result of applying a {@link PaymentEvent} to an {@link Order}. */
+public sealed interface Transition {
+
+    /** The event changed the order. {@code order} is the new state to persist. */
+    record Applied(OrderStatus newStatus, Order order) implements Transition {
+<span class="fc" id="L10">        public Applied {</span>
+<span class="fc" id="L11">            Objects.requireNonNull(order, &quot;order&quot;);</span>
+<span class="fc bfc" id="L12" title="All 2 branches covered.">            if (order.status() != newStatus) {</span>
+<span class="fc" id="L13">                throw new IllegalArgumentException(&quot;newStatus must equal order.status()&quot;);</span>
+            }
+<span class="fc" id="L15">        }</span>
+    }
+
+    /** The event arrived out of order or is superseded. The order is unchanged. */
+<span class="fc" id="L19">    record Stale(String reason) implements Transition {}</span>
+
+    /** The event is irrelevant in the order's state (for example, the order was cancelled). Unchanged. */
+<span class="fc" id="L22">    record Ignored(String reason) implements Transition {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

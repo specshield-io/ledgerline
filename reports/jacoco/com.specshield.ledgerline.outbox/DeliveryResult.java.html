@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>DeliveryResult.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.outbox</a> &gt; <span class="el_source">DeliveryResult.java</span></div><h1>DeliveryResult.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.outbox;
+
+/** Outcome of one HTTP delivery attempt. */
+public sealed interface DeliveryResult {
+
+    /** The merchant answered 2xx. */
+<span class="fc" id="L7">    record Delivered(int status) implements DeliveryResult {}</span>
+
+    /**
+     * Anything else.
+     *
+     * @param reason low-cardinality metric tag: {@code http_4xx}, {@code http_5xx}, {@code http_other},
+     *     {@code timeout}, {@code connect}, {@code io}, {@code interrupted}
+     * @param message stored as the row's last error; never contains secrets or the response body
+     */
+<span class="fc" id="L16">    record Failed(String reason, String message) implements DeliveryResult {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

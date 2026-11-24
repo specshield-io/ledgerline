@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>StoredResponse.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package com.specshield.ledgerline.application;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/** The response of a completed idempotent request, replayed byte for byte. */</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>public record StoredResponse(int status, byte[] body, String contentType, String location) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    public StoredResponse {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_7'/>
+7
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_7'>1</a>
+<span>
+1. &#60;init&#62; : negated conditional &rarr; SURVIVED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='survived'>        body = body == null ? new byte[0] : body.clone();</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    @Override</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public byte[] body() {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_12'/>
+12
+</td>
+<td class='survived'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_12'>1</a>
+<span>
+1. body : replaced return value with null for com/specshield/ledgerline/application/StoredResponse::body &rarr; NO_COVERAGE<br/>
+
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class='survived'>        return body.clone();</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@4b56fd01_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4b56fd01_7'>7</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_7'/> 
+
+<p class='SURVIVED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>none</span></span> negated conditional &rarr; SURVIVED</span>
+<a title="Click to view covering tests" class="view-covered-by-tests" onClick="document.getElementById('MutationIdentifier-[location=Location-[clazz=com.specshield.ledgerline.application.StoredResponse,-method=<init>,-methodDesc=(I[BLjava/lang/String;Ljava/lang/String;)V],-indexes=[8],-mutator=org.pitest.mutationtest.engine.gregor.mutators.NegateConditionalsMutator]').style.display=(document.getElementById('MutationIdentifier-[location=Location-[clazz=com.specshield.ledgerline.application.StoredResponse,-method=<init>,-methodDesc=(I[BLjava/lang/String;Ljava/lang/String;)V],-indexes=[8],-mutator=org.pitest.mutationtest.engine.gregor.mutators.NegateConditionalsMutator]').style.display == 'block')?'none':'block';">Covering tests</a>
+<div class="covered-tests" id="MutationIdentifier-[location=Location-[clazz=com.specshield.ledgerline.application.StoredResponse,-method=<init>,-methodDesc=(I[BLjava/lang/String;Ljava/lang/String;)V],-indexes=[8],-mutator=org.pitest.mutationtest.engine.gregor.mutators.NegateConditionalsMutator]" style="display:none;">Covered by tests:
+<ul>
+<li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:claims()]</li> <li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:keyFormat()]</li> <li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:races()]</li> <li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:lifecycle()]</li> <li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:expired()]</li> <li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:existing()]</li> 
+</ul>
+</div></div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@4b56fd01_12'>12</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@4b56fd01_12'/> 
+
+<p class='NO_COVERAGE'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>body<br/><b>Killed by : </b>none</span></span> replaced return value with null for com/specshield/ledgerline/application/StoredResponse::body &rarr; NO_COVERAGE</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NEGATE_CONDITIONALS</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:claims()] (2 ms)</li><li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:keyFormat()] (1 ms)</li><li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:races()] (4 ms)</li><li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:lifecycle()] (5 ms)</li><li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:expired()] (8 ms)</li><li>com.specshield.ledgerline.application.IdempotencyServiceFlowTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.IdempotencyServiceFlowTest]/[method:existing()] (59 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.30.2 <a href='https://github.com/sponsors/hcoles'>support</a>
+
+</body>
+</html>

@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MockPayWebhookController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.webhook</a> &gt; <span class="el_source">MockPayWebhookController.java</span></div><h1>MockPayWebhookController.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.webhook;
+
+import com.specshield.ledgerline.application.DecodedEvent;
+import com.specshield.ledgerline.application.PaymentEventService;
+import com.specshield.ledgerline.application.ProviderEventDecoder.MalformedEventException;
+import com.specshield.ledgerline.web.ProblemResponses;
+import com.specshield.ledgerline.web.ProblemTypes;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
+import java.nio.charset.StandardCharsets;
+import java.time.Clock;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Receives MockPay webhooks. The body is taken as raw bytes ({@code byte[]}), so nothing parses it before the
+ * signature is verified, and the bytes that are verified are exactly the bytes that are decoded.
+ */
+@RestController
+@Tag(name = &quot;Webhooks&quot;, description = &quot;Inbound provider webhooks (called by MockPay, not by clients)&quot;)
+public class MockPayWebhookController {
+
+    public static final String PATH = &quot;/webhooks/mockpay&quot;;
+    public static final String SIGNATURE_HEADER = &quot;MockPay-Signature&quot;;
+    /** MDC key for the order a log line is about (in JSON logs as orderId). */
+    public static final String ORDER_ID_MDC_KEY = &quot;orderId&quot;;
+
+    static final int MAX_BODY_BYTES = 64 * 1024;
+
+<span class="fc" id="L50">    private static final Logger log = LoggerFactory.getLogger(MockPayWebhookController.class);</span>
+    private static final String PROBLEM = &quot;application/problem+json&quot;;
+
+    private final WebhookSignatureVerifier verifier;
+    private final MockPayEventDecoder decoder;
+    private final PaymentEventService events;
+    private final WebhookMetrics metrics;
+    private final ObservationRegistry observations;
+    private final Clock clock;
+
+    public MockPayWebhookController(
+            WebhookSignatureVerifier verifier,
+            MockPayEventDecoder decoder,
+            PaymentEventService events,
+            WebhookMetrics metrics,
+            ObservationRegistry observations,
+<span class="fc" id="L66">            Clock clock) {</span>
+<span class="fc" id="L67">        this.verifier = verifier;</span>
+<span class="fc" id="L68">        this.decoder = decoder;</span>
+<span class="fc" id="L69">        this.events = events;</span>
+<span class="fc" id="L70">        this.metrics = metrics;</span>
+<span class="fc" id="L71">        this.observations = observations;</span>
+<span class="fc" id="L72">        this.clock = clock;</span>
+<span class="fc" id="L73">    }</span>
+
+    @PostMapping(path = PATH, consumes = &quot;application/json&quot;, produces = &quot;application/json&quot;)
+    @Operation(
+            summary = &quot;Receive a MockPay event&quot;,
+            description = &quot;Signed with MockPay-Signature: t=&lt;unix seconds&gt;,v1=&lt;hex HMAC-SHA256 of \&quot;t.body\&quot;&gt;.&quot;
+                    + &quot; Duplicates are acknowledged with 200 and duplicate=true so the provider stops retrying.&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;Received (applied, duplicate, ignored, orphan or waiting)&quot;,
+            content = @Content(mediaType = &quot;application/json&quot;, schema = @Schema(implementation = WebhookAck.class)))
+    @ApiResponse(
+            responseCode = &quot;400&quot;,
+            description = &quot;invalid-signature or malformed-event&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    @ApiResponse(
+            responseCode = &quot;500&quot;,
+            description = &quot;Processing failed and was rolled back; the provider should retry&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    ResponseEntity&lt;?&gt; receive(
+            @Parameter(in = ParameterIn.HEADER, description = &quot;t=&lt;unix seconds&gt;,v1=&lt;hex&gt;[,v1=&lt;hex&gt;]&quot;)
+                    @RequestHeader(name = SIGNATURE_HEADER, required = false)
+                    String signature,
+            @RequestBody byte[] body,
+            HttpServletRequest request) {
+<span class="fc" id="L98">        metrics.received();</span>
+        try {
+<span class="fc" id="L100">            return metrics.processing().record(() -&gt; handle(signature, body, request));</span>
+        } finally {
+<span class="fc" id="L102">            MDC.remove(ORDER_ID_MDC_KEY);</span>
+        }
+    }
+
+    private ResponseEntity&lt;?&gt; handle(String signature, byte[] body, HttpServletRequest request) {
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        if (body.length &gt; MAX_BODY_BYTES) {</span>
+<span class="fc" id="L108">            return reject(&quot;body_too_large&quot;, body, request);</span>
+        }
+<span class="fc" id="L110">        String rejection = verify(signature, body);</span>
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        if (rejection != null) {</span>
+<span class="fc" id="L112">            return reject(rejection, body, request);</span>
+        }
+
+<span class="fc" id="L115">        String payload = new String(body, StandardCharsets.UTF_8);</span>
+        DecodedEvent event;
+        try {
+<span class="fc" id="L118">            event = decoder.decode(payload);</span>
+<span class="fc" id="L119">        } catch (MalformedEventException e) {</span>
+<span class="fc" id="L120">            metrics.rejected(&quot;malformed_event&quot;);</span>
+<span class="fc" id="L121">            log.info(&quot;mockpay webhook rejected: malformed event ({})&quot;, e.getMessage());</span>
+<span class="fc" id="L122">            return problem(</span>
+<span class="fc" id="L123">                    HttpStatus.BAD_REQUEST, ProblemTypes.MALFORMED_EVENT, &quot;Malformed event&quot;, e.getMessage(), request);</span>
+<span class="fc" id="L124">        }</span>
+
+<span class="fc" id="L126">        MDC.put(ORDER_ID_MDC_KEY, String.valueOf(event.orderId()));</span>
+        PaymentEventService.Result result;
+        try {
+<span class="fc" id="L129">            result = process(event, payload);</span>
+<span class="fc" id="L130">        } catch (RuntimeException e) {</span>
+<span class="fc" id="L131">            metrics.failure();</span>
+            // The stack trace is logged once, by ApiExceptionHandler.
+<span class="fc" id="L133">            log.error(</span>
+                    &quot;mockpay webhook {} failed ({}); rolled back for redelivery&quot;,
+<span class="fc" id="L135">                    event.eventId(),</span>
+<span class="fc" id="L136">                    e.getClass().getSimpleName());</span>
+<span class="fc" id="L137">            throw e; // ApiExceptionHandler answers 500 problem+json</span>
+<span class="fc" id="L138">        }</span>
+
+<span class="fc" id="L140">        metrics.applied(result.applied());</span>
+<span class="fc" id="L141">        metrics.stale(result.stale());</span>
+<span class="fc" id="L142">        Map&lt;String, Object&gt; ack = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L143">        ack.put(&quot;received&quot;, true);</span>
+<span class="fc bfc" id="L144" title="All 2 branches covered.">        if (result.outcome() == PaymentEventService.Outcome.DUPLICATE) {</span>
+<span class="fc" id="L145">            metrics.duplicate();</span>
+<span class="fc" id="L146">            ack.put(&quot;duplicate&quot;, true);</span>
+        }
+<span class="fc" id="L148">        log.info(&quot;mockpay webhook {} ({}) -&gt; {}&quot;, event.eventId(), event.type(), result.outcome());</span>
+<span class="fc" id="L149">        return ResponseEntity.ok(ack);</span>
+    }
+
+    /** Span/timer {@code webhook.verify}; returns the rejection reason tag, or null if the signature is valid. */
+    private String verify(String signature, byte[] body) {
+<span class="fc" id="L154">        Observation observation = Observation.createNotStarted(&quot;webhook.verify&quot;, observations)</span>
+<span class="fc" id="L155">                .contextualName(&quot;webhook verify&quot;)</span>
+<span class="fc" id="L156">                .lowCardinalityKeyValue(&quot;provider&quot;, MockPayEventDecoder.PROVIDER);</span>
+<span class="fc" id="L157">        return observation.observe(() -&gt; {</span>
+            try {
+<span class="fc" id="L159">                verifier.verify(signature, body, clock.instant());</span>
+<span class="fc" id="L160">                observation.lowCardinalityKeyValue(&quot;result&quot;, &quot;valid&quot;);</span>
+<span class="fc" id="L161">                return null;</span>
+<span class="fc" id="L162">            } catch (InvalidSignatureException e) {</span>
+<span class="fc" id="L163">                observation.lowCardinalityKeyValue(&quot;result&quot;, e.reason().tag());</span>
+<span class="fc" id="L164">                return e.reason().tag();</span>
+            }
+        });
+    }
+
+    /** Span/timer {@code webhook.process}: inbox, sequencing, order update, audit and outbox in one transaction. */
+    private PaymentEventService.Result process(DecodedEvent event, String payload) {
+<span class="fc" id="L171">        Observation observation = Observation.createNotStarted(&quot;webhook.process&quot;, observations)</span>
+<span class="fc" id="L172">                .contextualName(&quot;webhook process&quot;)</span>
+<span class="fc" id="L173">                .lowCardinalityKeyValue(&quot;provider&quot;, MockPayEventDecoder.PROVIDER)</span>
+<span class="fc bfc" id="L174" title="All 2 branches covered.">                .lowCardinalityKeyValue(&quot;event.type&quot;, event.knownType() ? event.type() : &quot;unknown&quot;)</span>
+<span class="fc" id="L175">                .highCardinalityKeyValue(&quot;event.id&quot;, event.eventId())</span>
+<span class="fc" id="L176">                .highCardinalityKeyValue(&quot;order.id&quot;, String.valueOf(event.orderId()));</span>
+<span class="fc" id="L177">        return observation.observe(() -&gt; {</span>
+<span class="fc" id="L178">            PaymentEventService.Result result = events.process(event, payload);</span>
+<span class="fc" id="L179">            observation.lowCardinalityKeyValue(&quot;outcome&quot;, result.outcome().name());</span>
+<span class="fc" id="L180">            return result;</span>
+        });
+    }
+
+    private ResponseEntity&lt;ProblemDetail&gt; reject(String reason, byte[] body, HttpServletRequest request) {
+<span class="fc" id="L185">        metrics.rejected(reason);</span>
+<span class="fc" id="L186">        events.reject(reason, body);</span>
+        // Log the reason only: never the secret, the signature header or the body.
+<span class="fc" id="L188">        log.info(&quot;mockpay webhook rejected: {}&quot;, reason);</span>
+<span class="fc" id="L189">        return problem(</span>
+                HttpStatus.BAD_REQUEST,
+                ProblemTypes.INVALID_SIGNATURE,
+                &quot;Invalid signature&quot;,
+                &quot;The MockPay-Signature header is missing, malformed, expired or does not match.&quot;,
+                request);
+    }
+
+    private static ResponseEntity&lt;ProblemDetail&gt; problem(
+            HttpStatus status, URI type, String title, String detail, HttpServletRequest request) {
+<span class="fc" id="L199">        return ResponseEntity.status(status)</span>
+<span class="fc" id="L200">                .contentType(MediaType.APPLICATION_PROBLEM_JSON)</span>
+<span class="fc" id="L201">                .body(ProblemResponses.problem(status, type, title, detail, request.getRequestURI()));</span>
+    }
+
+    @Schema(name = &quot;WebhookAck&quot;)
+<span class="nc" id="L205">    record WebhookAck(</span>
+            boolean received,
+
+            @Schema(nullable = true, description = &quot;Present and true when the event was already stored&quot;)
+            Boolean duplicate) {}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.config</a> &gt; <span class="el_source">SecurityProperties.java</span></div><h1>SecurityProperties.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.config;
+
+import java.util.List;
+import java.util.regex.Pattern;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+
+/**
+ * Users and CORS.
+ *
+ * @param users HTTP Basic users; the password is stored only as a BCrypt hash. A user with a blank hash is skipped
+ *     (an optional account whose environment variable is unset).
+ * @param corsAllowedOrigins exact origins allowed to call {@code /api/**} from a browser
+ */
+@ConfigurationProperties(&quot;ledgerline.security&quot;)
+public record SecurityProperties(List&lt;User&gt; users, List&lt;String&gt; corsAllowedOrigins) {
+
+<span class="fc" id="L17">    public enum Role {</span>
+        /** Everything, including replay and reset. */
+<span class="fc" id="L19">        ADMIN,</span>
+        /** Read-only admin views. */
+<span class="fc" id="L21">        VIEWER</span>
+    }
+
+<span class="fc" id="L24">    private static final Pattern BCRYPT = Pattern.compile(&quot;\\$2[aby]\\$\\d{2}\\$[./A-Za-z0-9]{53}&quot;);</span>
+
+    public record User(String username, String passwordHash, Role role) {
+
+<span class="fc" id="L28">        public User {</span>
+<span class="pc bpc" id="L29" title="2 of 4 branches missed.">            if (username == null || username.isBlank()) {</span>
+<span class="nc" id="L30">                throw new IllegalArgumentException(&quot;ledgerline.security.users[].username is required&quot;);</span>
+            }
+<span class="pc bpc" id="L32" title="1 of 2 branches missed.">            if (role == null) {</span>
+<span class="nc" id="L33">                throw new IllegalArgumentException(&quot;ledgerline.security.users[].role is required for &quot; + username);</span>
+            }
+<span class="pc bpc" id="L35" title="1 of 2 branches missed.">            if (passwordHash != null</span>
+<span class="pc bpc" id="L36" title="1 of 2 branches missed.">                    &amp;&amp; !passwordHash.isBlank()</span>
+<span class="pc bpc" id="L37" title="1 of 2 branches missed.">                    &amp;&amp; !BCRYPT.matcher(passwordHash).matches()) {</span>
+                // Never echo the value: it may be a plain password pasted by mistake.
+<span class="nc" id="L39">                throw new IllegalArgumentException(&quot;password hash for &quot; + username + &quot; is not a BCrypt hash&quot;);</span>
+            }
+<span class="fc" id="L41">        }</span>
+
+        public boolean enabled() {
+<span class="pc bpc" id="L44" title="2 of 4 branches missed.">            return passwordHash != null &amp;&amp; !passwordHash.isBlank();</span>
+        }
+
+        @Override
+        public String toString() {
+<span class="nc" id="L49">            return &quot;User[&quot; + username + &quot;, &quot; + role + &quot;, hash=&lt;redacted&gt;]&quot;;</span>
+        }
+    }
+
+<span class="fc" id="L53">    public SecurityProperties {</span>
+<span class="pc bpc" id="L54" title="1 of 2 branches missed.">        users = users == null ? List.of() : List.copyOf(users);</span>
+<span class="pc bpc" id="L55" title="1 of 2 branches missed.">        corsAllowedOrigins = corsAllowedOrigins == null ? List.of() : List.copyOf(corsAllowedOrigins);</span>
+<span class="fc" id="L56">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

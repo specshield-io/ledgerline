@@ -1,0 +1,248 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ApiExceptionHandler.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">ApiExceptionHandler.java</span></div><h1>ApiExceptionHandler.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.application.OrderNotFoundException;
+import com.specshield.ledgerline.application.OrderService;
+import com.specshield.ledgerline.application.OutboxMessageNotFoundException;
+import com.specshield.ledgerline.application.OutboxMessageNotReplayableException;
+import com.specshield.ledgerline.chaos.ChaosExceptions;
+import com.specshield.ledgerline.domain.IllegalTransitionException;
+import jakarta.servlet.http.HttpServletRequest;
+import java.net.URI;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import org.jspecify.annotations.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
+import org.springframework.http.ProblemDetail;
+import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
+import org.springframework.validation.FieldError;
+import org.springframework.web.HttpMediaTypeNotAcceptableException;
+import org.springframework.web.HttpMediaTypeNotSupportedException;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingRequestHeaderException;
+import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.method.annotation.HandlerMethodValidationException;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.mvc.method.annotation.ResponseEntityExceptionHandler;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
+/** Maps every exception reaching Spring MVC to RFC 9457 problem+json with a stable type. */
+@RestControllerAdvice
+<span class="fc" id="L40">public class ApiExceptionHandler extends ResponseEntityExceptionHandler {</span>
+
+<span class="fc" id="L42">    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);</span>
+
+    @ExceptionHandler(OrderNotFoundException.class)
+    ResponseEntity&lt;ProblemDetail&gt; orderNotFound(OrderNotFoundException e, HttpServletRequest request) {
+<span class="fc" id="L46">        return respond(HttpStatus.NOT_FOUND, ProblemTypes.ORDER_NOT_FOUND, &quot;Order not found&quot;, e.getMessage(), request);</span>
+    }
+
+    @ExceptionHandler(ChaosExceptions.ScenarioNotFound.class)
+    ResponseEntity&lt;ProblemDetail&gt; scenarioNotFound(ChaosExceptions.ScenarioNotFound e, HttpServletRequest request) {
+<span class="fc" id="L51">        return respond(</span>
+<span class="fc" id="L52">                HttpStatus.NOT_FOUND, ProblemTypes.SCENARIO_NOT_FOUND, &quot;Scenario not found&quot;, e.getMessage(), request);</span>
+    }
+
+    @ExceptionHandler(ChaosExceptions.RunNotFound.class)
+    ResponseEntity&lt;ProblemDetail&gt; runNotFound(ChaosExceptions.RunNotFound e, HttpServletRequest request) {
+<span class="fc" id="L57">        return respond(</span>
+                HttpStatus.NOT_FOUND,
+                ProblemTypes.SCENARIO_RUN_NOT_FOUND,
+                &quot;Scenario run not found&quot;,
+<span class="fc" id="L61">                e.getMessage(),</span>
+                request);
+    }
+
+    /** Retry-After: a run takes a few seconds, so a slot is usually free again soon. */
+    @ExceptionHandler(ChaosExceptions.CapacityExceeded.class)
+    ResponseEntity&lt;ProblemDetail&gt; tooManyRuns(ChaosExceptions.CapacityExceeded e, HttpServletRequest request) {
+<span class="fc" id="L68">        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)</span>
+<span class="fc" id="L69">                .header(HttpHeaders.RETRY_AFTER, &quot;5&quot;)</span>
+<span class="fc" id="L70">                .body(problem(</span>
+                        HttpStatus.TOO_MANY_REQUESTS,
+                        ProblemTypes.TOO_MANY_SCENARIO_RUNS,
+                        &quot;Too many scenario runs&quot;,
+<span class="fc" id="L74">                        e.getMessage(),</span>
+                        request));
+    }
+
+    @ExceptionHandler(ChaosExceptions.Unavailable.class)
+    ResponseEntity&lt;ProblemDetail&gt; chaosUnavailable(ChaosExceptions.Unavailable e, HttpServletRequest request) {
+<span class="fc" id="L80">        return respond(</span>
+                HttpStatus.SERVICE_UNAVAILABLE,
+                ProblemTypes.CHAOS_UNAVAILABLE,
+                &quot;Scenario unavailable&quot;,
+<span class="fc" id="L84">                e.getMessage(),</span>
+                request);
+    }
+
+    @ExceptionHandler(DemoAdminController.ResetInProgressException.class)
+    ResponseEntity&lt;ProblemDetail&gt; resetInProgress(
+            DemoAdminController.ResetInProgressException e, HttpServletRequest request) {
+<span class="fc" id="L91">        return respond(</span>
+<span class="fc" id="L92">                HttpStatus.CONFLICT, ProblemTypes.RESET_IN_PROGRESS, &quot;Reset in progress&quot;, e.getMessage(), request);</span>
+    }
+
+    @ExceptionHandler(OutboxMessageNotFoundException.class)
+    ResponseEntity&lt;ProblemDetail&gt; outboxMessageNotFound(OutboxMessageNotFoundException e, HttpServletRequest request) {
+<span class="fc" id="L97">        return respond(</span>
+                HttpStatus.NOT_FOUND,
+                ProblemTypes.OUTBOX_MESSAGE_NOT_FOUND,
+                &quot;Outbox message not found&quot;,
+<span class="fc" id="L101">                e.getMessage(),</span>
+                request);
+    }
+
+    @ExceptionHandler(OutboxMessageNotReplayableException.class)
+    ResponseEntity&lt;ProblemDetail&gt; outboxMessageNotReplayable(
+            OutboxMessageNotReplayableException e, HttpServletRequest request) {
+<span class="fc" id="L108">        ProblemDetail problem = problem(</span>
+                HttpStatus.CONFLICT,
+                ProblemTypes.OUTBOX_MESSAGE_NOT_REPLAYABLE,
+                &quot;Outbox message not replayable&quot;,
+<span class="fc" id="L112">                e.getMessage(),</span>
+                request);
+<span class="fc" id="L114">        problem.setProperty(&quot;currentStatus&quot;, e.status().name());</span>
+<span class="fc" id="L115">        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);</span>
+    }
+
+    @ExceptionHandler(IllegalTransitionException.class)
+    ResponseEntity&lt;ProblemDetail&gt; illegalTransition(IllegalTransitionException e, HttpServletRequest request) {
+<span class="fc" id="L120">        ProblemDetail problem = problem(</span>
+                HttpStatus.CONFLICT,
+                ProblemTypes.ILLEGAL_TRANSITION,
+                &quot;Illegal state transition&quot;,
+<span class="fc" id="L124">                &quot;The order is &quot; + e.from() + &quot;; &quot; + e.event() + &quot; is not allowed in that state.&quot;,</span>
+                request);
+<span class="fc" id="L126">        problem.setProperty(&quot;currentStatus&quot;, e.from().name());</span>
+<span class="fc" id="L127">        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);</span>
+    }
+
+    @ExceptionHandler(ObjectOptimisticLockingFailureException.class)
+    ResponseEntity&lt;ProblemDetail&gt; concurrentModification(HttpServletRequest request) {
+<span class="nc" id="L132">        return respond(</span>
+                HttpStatus.CONFLICT,
+                ProblemTypes.CONCURRENT_MODIFICATION,
+                &quot;Concurrent modification&quot;,
+                &quot;The order was changed by another request. Read it again and retry.&quot;,
+                request);
+    }
+
+    /** Domain invariant violations that passed request validation (messages contain no internals). */
+    @ExceptionHandler(IllegalArgumentException.class)
+    ResponseEntity&lt;ProblemDetail&gt; invalidArgument(IllegalArgumentException e, HttpServletRequest request) {
+<span class="nc" id="L143">        return respond(HttpStatus.BAD_REQUEST, ProblemTypes.VALIDATION, &quot;Invalid request&quot;, e.getMessage(), request);</span>
+    }
+
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity&lt;ProblemDetail&gt; typeMismatch(MethodArgumentTypeMismatchException e, HttpServletRequest request) {
+<span class="fc" id="L148">        return respond(</span>
+                HttpStatus.BAD_REQUEST,
+                ProblemTypes.INVALID_PARAMETER,
+                &quot;Invalid parameter&quot;,
+<span class="fc" id="L152">                &quot;Parameter '&quot; + e.getName() + &quot;' has an invalid value.&quot;,</span>
+                request);
+    }
+
+    @ExceptionHandler(Exception.class)
+    ResponseEntity&lt;ProblemDetail&gt; unexpected(Exception e, HttpServletRequest request) {
+<span class="fc" id="L158">        log.error(&quot;unhandled exception for {} {}&quot;, request.getMethod(), request.getRequestURI(), e);</span>
+<span class="fc" id="L159">        return respond(</span>
+                HttpStatus.INTERNAL_SERVER_ERROR,
+                ProblemTypes.INTERNAL_ERROR,
+                &quot;Internal error&quot;,
+                &quot;An unexpected error occurred. Quote the correlationId when reporting it.&quot;,
+                request);
+    }
+
+    @Override
+    protected ResponseEntity&lt;Object&gt; handleMethodArgumentNotValid(
+            MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+<span class="nc" id="L170">        List&lt;Map&lt;String, String&gt;&gt; errors = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L171" title="All 2 branches missed.">        for (FieldError fe : ex.getBindingResult().getFieldErrors()) {</span>
+<span class="nc" id="L172">            errors.add(Map.of(&quot;field&quot;, fe.getField(), &quot;message&quot;, String.valueOf(fe.getDefaultMessage())));</span>
+<span class="nc" id="L173">        }</span>
+<span class="nc" id="L174">        ProblemDetail problem = ex.getBody();</span>
+<span class="nc" id="L175">        problem.setType(ProblemTypes.VALIDATION);</span>
+<span class="nc" id="L176">        problem.setTitle(&quot;Invalid request&quot;);</span>
+<span class="nc" id="L177">        problem.setDetail(&quot;The request body has &quot; + errors.size() + &quot; invalid field(s).&quot;);</span>
+<span class="nc" id="L178">        problem.setProperty(&quot;errors&quot;, errors);</span>
+<span class="nc" id="L179">        return handleExceptionInternal(ex, problem, headers, status, request);</span>
+    }
+
+    @Override
+    protected ResponseEntity&lt;Object&gt; handleHandlerMethodValidationException(
+            HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+<span class="fc" id="L185">        List&lt;Map&lt;String, String&gt;&gt; errors = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L186">        ex.getParameterValidationResults().forEach(result -&gt; {</span>
+<span class="fc" id="L187">            String name = result.getMethodParameter().getParameterName();</span>
+<span class="fc" id="L188">            result.getResolvableErrors()</span>
+<span class="fc" id="L189">                    .forEach(err -&gt; errors.add(Map.of(</span>
+<span class="fc" id="L190">                            &quot;parameter&quot;, String.valueOf(name), &quot;message&quot;, String.valueOf(err.getDefaultMessage()))));</span>
+<span class="fc" id="L191">        });</span>
+<span class="fc" id="L192">        ProblemDetail problem = ex.getBody();</span>
+<span class="fc" id="L193">        problem.setType(ProblemTypes.VALIDATION);</span>
+<span class="fc" id="L194">        problem.setTitle(&quot;Invalid request&quot;);</span>
+<span class="fc" id="L195">        problem.setDetail(&quot;The request has &quot; + errors.size() + &quot; invalid parameter(s) or header(s).&quot;);</span>
+<span class="fc" id="L196">        problem.setProperty(&quot;errors&quot;, errors);</span>
+<span class="fc" id="L197">        return handleExceptionInternal(ex, problem, headers, status, request);</span>
+    }
+
+    /**
+     * Gives every framework-generated problem a stable type, a detail and the correlation id. Spring often passes a
+     * null body here and builds the ProblemDetail inside super, so the enrichment runs on the returned response.
+     */
+    @Override
+    protected ResponseEntity&lt;Object&gt; handleExceptionInternal(
+            Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
+<span class="fc" id="L207">        ResponseEntity&lt;Object&gt; response = super.handleExceptionInternal(ex, body, headers, status, request);</span>
+<span class="pc bpc" id="L208" title="2 of 4 branches missed.">        if (response != null &amp;&amp; response.getBody() instanceof ProblemDetail problem) {</span>
+<span class="fc bfc" id="L209" title="All 2 branches covered.">            if (problem.getType() == null</span>
+<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                    || &quot;about:blank&quot;.equals(problem.getType().toString())) {</span>
+<span class="fc" id="L211">                problem.setType(typeFor(ex, status.value()));</span>
+            }
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">            if (problem.getTitle() == null) {</span>
+<span class="nc" id="L214">                problem.setTitle(HttpStatus.valueOf(status.value()).getReasonPhrase());</span>
+            }
+<span class="pc bpc" id="L216" title="1 of 2 branches missed.">            if (problem.getDetail() == null) {</span>
+<span class="nc" id="L217">                problem.setDetail(HttpStatus.valueOf(status.value()).getReasonPhrase());</span>
+            }
+<span class="fc" id="L219">            String correlationId = MDC.get(OrderService.CORRELATION_ID_MDC_KEY);</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">            if (correlationId != null) {</span>
+<span class="fc" id="L221">                problem.setProperty(ProblemResponses.CORRELATION_ID_PROPERTY, correlationId);</span>
+            }
+        }
+<span class="fc" id="L224">        return response;</span>
+    }
+
+    private static URI typeFor(Exception ex, int status) {
+<span class="pc bpc" id="L228" title="2 of 6 branches missed.">        return switch (ex) {</span>
+<span class="fc" id="L229">            case MissingRequestHeaderException ignored -&gt; ProblemTypes.MISSING_HEADER;</span>
+<span class="fc" id="L230">            case NoResourceFoundException ignored -&gt; ProblemTypes.NOT_FOUND;</span>
+<span class="fc" id="L231">            case HttpRequestMethodNotSupportedException ignored -&gt; ProblemTypes.METHOD_NOT_ALLOWED;</span>
+<span class="nc" id="L232">            case HttpMediaTypeNotSupportedException ignored -&gt; ProblemTypes.UNSUPPORTED_MEDIA_TYPE;</span>
+<span class="nc" id="L233">            case HttpMediaTypeNotAcceptableException ignored -&gt; ProblemTypes.NOT_ACCEPTABLE;</span>
+<span class="fc" id="L234">            default -&gt; ProblemTypes.forStatus(status);</span>
+        };
+    }
+
+    private static ProblemDetail problem(
+            HttpStatus status, URI type, String title, String detail, HttpServletRequest request) {
+<span class="fc" id="L240">        return ProblemResponses.problem(status, type, title, detail, request.getRequestURI());</span>
+    }
+
+    private static ResponseEntity&lt;ProblemDetail&gt; respond(
+            HttpStatus status, URI type, String title, String detail, HttpServletRequest request) {
+<span class="fc" id="L245">        return ResponseEntity.status(status).body(problem(status, type, title, detail, request));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

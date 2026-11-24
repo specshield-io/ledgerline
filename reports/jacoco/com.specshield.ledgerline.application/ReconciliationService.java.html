@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ReconciliationService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.application</a> &gt; <span class="el_source">ReconciliationService.java</span></div><h1>ReconciliationService.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.application;
+
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderStatus;
+import com.specshield.ledgerline.domain.OrderStore;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Compares the provider's settled payments with our orders and records every difference as an audit row of kind
+ * RECONCILIATION_MISMATCH. A mismatch is recorded once per (payment, provider status, order status), not on every
+ * run. Payments settled within the grace period are skipped: their webhook may still be in flight.
+ */
+@Service
+public class ReconciliationService {
+
+    public static final String MISMATCH = &quot;RECONCILIATION_MISMATCH&quot;;
+
+<span class="fc" id="L30">    private static final Logger log = LoggerFactory.getLogger(ReconciliationService.class);</span>
+<span class="fc" id="L31">    private static final Set&lt;OrderStatus&gt; PAID_STATES =</span>
+<span class="fc" id="L32">            Set.of(OrderStatus.PAID, OrderStatus.PARTIALLY_REFUNDED, OrderStatus.REFUNDED);</span>
+
+    private final ProviderLedger ledger;
+    private final OrderStore orders;
+    private final AuditTrail audit;
+    private final Clock clock;
+    private final Duration grace;
+    private final JsonMapper json;
+
+    public ReconciliationService(
+            ProviderLedger ledger,
+            OrderStore orders,
+            AuditTrail audit,
+            Clock clock,
+            @Value(&quot;${ledgerline.reconciliation.grace:PT2M}&quot;) Duration grace,
+<span class="fc" id="L47">            JsonMapper json) {</span>
+<span class="fc" id="L48">        this.ledger = ledger;</span>
+<span class="fc" id="L49">        this.orders = orders;</span>
+<span class="fc" id="L50">        this.audit = audit;</span>
+<span class="fc" id="L51">        this.clock = clock;</span>
+<span class="fc" id="L52">        this.grace = grace;</span>
+<span class="fc" id="L53">        this.json = json;</span>
+<span class="fc" id="L54">    }</span>
+
+    /** Returns the number of new mismatches recorded. */
+    @Transactional
+    public int reconcile() {
+<span class="fc" id="L59">        Instant now = clock.instant();</span>
+<span class="fc" id="L60">        int recorded = 0;</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        for (ProviderLedger.SettledPayment payment : ledger.latestSettledPayments(now.minus(grace))) {</span>
+<span class="fc" id="L62">            Optional&lt;Order&gt; order = orders.findById(payment.orderId());</span>
+<span class="fc" id="L63">            String orderStatus = order.map(o -&gt; o.status().name()).orElse(&quot;MISSING&quot;);</span>
+<span class="fc bfc" id="L64" title="All 4 branches covered.">            if (order.isPresent() &amp;&amp; consistent(payment.status(), order.get().status())) {</span>
+<span class="fc" id="L65">                continue;</span>
+            }
+<span class="fc" id="L67">            Map&lt;String, Object&gt; detail = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L68">            detail.put(&quot;paymentId&quot;, payment.paymentId());</span>
+<span class="fc" id="L69">            detail.put(&quot;providerStatus&quot;, payment.status());</span>
+<span class="fc" id="L70">            detail.put(&quot;orderStatus&quot;, orderStatus);</span>
+<span class="fc" id="L71">            String detailJson = json.writeValueAsString(detail);</span>
+<span class="fc" id="L72">            boolean alreadyRecorded = audit.forOrder(payment.orderId()).stream()</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">                    .anyMatch(a -&gt; MISMATCH.equals(a.kind())</span>
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">                            &amp;&amp; json.readTree(a.detailJson()).equals(json.readTree(detailJson)));</span>
+<span class="fc bfc" id="L75" title="All 2 branches covered.">            if (alreadyRecorded) {</span>
+<span class="fc" id="L76">                continue;</span>
+            }
+<span class="fc" id="L78">            audit.append(new AuditRecord(null, payment.orderId(), MISMATCH, detailJson, &quot;reconciliation&quot;, null, now));</span>
+<span class="fc" id="L79">            log.warn(</span>
+                    &quot;reconciliation mismatch: payment {} is {} at the provider, order {} is {}&quot;,
+<span class="fc" id="L81">                    payment.paymentId(),</span>
+<span class="fc" id="L82">                    payment.status(),</span>
+<span class="fc" id="L83">                    payment.orderId(),</span>
+                    orderStatus);
+<span class="fc" id="L85">            recorded++;</span>
+<span class="fc" id="L86">        }</span>
+<span class="fc" id="L87">        return recorded;</span>
+    }
+
+    static boolean consistent(String providerStatus, OrderStatus orderStatus) {
+<span class="fc bfc" id="L91" title="All 3 branches covered.">        return switch (providerStatus) {</span>
+<span class="fc" id="L92">            case &quot;SUCCEEDED&quot; -&gt; PAID_STATES.contains(orderStatus);</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">            case &quot;FAILED&quot; -&gt; orderStatus == OrderStatus.PAYMENT_FAILED;</span>
+<span class="fc" id="L94">            default -&gt; true;</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

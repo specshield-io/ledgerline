@@ -1,0 +1,679 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>PaymentEvent.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package com.specshield.ledgerline.domain;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.time.Instant;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.time.temporal.ChronoUnit;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.Objects;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.UUID;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * An event reported by the payment provider about one order.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param providerEventId the provider&#39;s unique id for this event; the deduplication key</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param occurredAt when the provider says it happened (provider clock, not ours)</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * @param sequence the provider&#39;s per-order counter, strictly increasing, starting at 1</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>public record PaymentEvent(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        String providerEventId,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        PaymentEventType type,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        UUID orderId,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        long amountMinor,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        Instant occurredAt,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        long sequence) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    public PaymentEvent {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_24'/>
+24
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_24'>2</a>
+<span>
+1. &#60;init&#62; : negated conditional &rarr; KILLED<br/>
+2. &#60;init&#62; : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (providerEventId == null || providerEventId.isBlank()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;providerEventId must not be blank&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        Objects.requireNonNull(type, &#34;type&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        Objects.requireNonNull(orderId, &#34;orderId&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        Objects.requireNonNull(occurredAt, &#34;occurredAt&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_30'/>
+30
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_30'>1</a>
+<span>
+1. &#60;init&#62; : removed call to com/specshield/ledgerline/domain/Order::requireValidAmount &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        Order.requireValidAmount(amountMinor);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_31'/>
+31
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_31'>2</a>
+<span>
+1. &#60;init&#62; : negated conditional &rarr; KILLED<br/>
+2. &#60;init&#62; : changed conditional boundary &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (sequence &#60; 1) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;sequence must be at least 1, was &#34; + sequence);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        occurredAt = occurredAt.truncatedTo(ChronoUnit.MICROS);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    @Override</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public String toString() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_39'/>
+39
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_39'>1</a>
+<span>
+1. toString : replaced return value with &#34;&#34; for com/specshield/ledgerline/domain/PaymentEvent::toString &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return type + &#34;(id=&#34; + providerEventId + &#34;, seq=&#34; + sequence + &#34;, amountMinor=&#34; + amountMinor + &#34;)&#34;;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_24'>24</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_24'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_30'>30</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_30'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:eventAmount()]</span></span> removed call to com/specshield/ledgerline/domain/Order::requireValidAmount &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_31'>31</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_31'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@15b5cc2e_39'>39</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@15b5cc2e_39'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>toString<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#21]</span></span> replaced return value with &#34;&#34; for com/specshield/ledgerline/domain/PaymentEvent::toString &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NEGATE_CONDITIONALS</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:otherFields()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:stepInvariant()] (3 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:eventForAnotherOrder()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:staleWinsOverIllegal()] (0 ms)</li><li>com.specshield.ledgerline.webhook.MockPayEventDecoderTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayEventDecoderTest]/[test-template:malformed(java.lang.String)]/[test-template-invocation:#8] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelledIgnoresEvents()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#26] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#28] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#25] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:foreignEvent()] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#27] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#19] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#23] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:staleEventsDoNotChangeState()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:pendingToPaid()] (0 ms)</li><li>com.specshield.ledgerline.webhook.MockPayEventDecoderTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayEventDecoderTest]/[method:decodes()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#5] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#9] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#13] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#17] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#21] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#14] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#18] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#3] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#11] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:failedThenRetrySucceeds()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#6] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#10] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:createdToPending()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#2] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#15] (4 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#22] (3 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#24] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:fullRefundFromPaid()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#7] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#4] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#8] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#12] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:cancelledIgnoresEverything()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#20] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:duplicatesInBatch()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#16] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:appliesInSequenceOrder()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:staleSequences()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#1] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:partialThenFullRefund()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:illegalEventBlocks()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:gapWaits()] (0 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:ignoredAndOrphan()] (4 ms)</li><li>com.specshield.ledgerline.webhook.MockPayWebhookControllerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayWebhookControllerTest]/[method:failure()] (3 ms)</li><li>com.specshield.ledgerline.webhook.MockPayWebhookControllerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayWebhookControllerTest]/[method:duplicate()] (2 ms)</li><li>com.specshield.ledgerline.webhook.MockPayWebhookControllerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayWebhookControllerTest]/[method:applied()] (2 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:duplicate()] (2 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:orphans()] (3 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:stale()] (4 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:gap()] (5 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:applies()] (6 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:failed()] (26 ms)</li><li>com.specshield.ledgerline.domain.EventReplayPropertyTest.[engine:jqwik]/[class:com.specshield.ledgerline.domain.EventReplayPropertyTest]/[property:naiveApplicationLosesOutOfOrderRefund()] (99 ms)</li><li>com.specshield.ledgerline.domain.EventReplayPropertyTest.[engine:jqwik]/[class:com.specshield.ledgerline.domain.EventReplayPropertyTest]/[property:duplicatedAndShuffledDeliveryConverges(com.specshield.ledgerline.domain.EventReplayPropertyTest$Scenario)] (622 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:eventAmount()] (0 ms)</li><li>com.specshield.ledgerline.webhook.MockPayEventDecoderTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayEventDecoderTest]/[test-template:malformed(java.lang.String)]/[test-template-invocation:#11] (0 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.30.2 <a href='https://github.com/sponsors/hcoles'>support</a>
+
+</body>
+</html>

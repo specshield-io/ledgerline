@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderEventSequencer.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.domain</a> &gt; <span class="el_source">OrderEventSequencer.java</span></div><h1>OrderEventSequencer.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.domain;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+
+/**
+ * Applies one order's not-yet-processed provider events in sequence order.
+ *
+ * &lt;p&gt;Why this exists: {@link OrderStateMachine} treats an event whose sequence is at or below the last applied one as
+ * STALE. Applying events in arrival order would therefore lose data. If refund #5 is applied before refund #4, #4 is
+ * STALE and its amount is never recorded. The inbox must instead hand all pending events for an order to
+ * {@link #drain}, which:
+ *
+ * &lt;ol&gt;
+ *   &lt;li&gt;drops events whose providerEventId has already been seen in this batch (the inbox's unique constraint drops
+ *       repeats across deliveries);
+ *   &lt;li&gt;sorts by sequence (then providerEventId, for determinism);
+ *   &lt;li&gt;applies every event up to and including the next expected sequence ({@code lastEventSequence + 1}),
+ *       advancing as it goes;
+ *   &lt;li&gt;leaves events after a gap {@linkplain Result#waiting() waiting}, to be retried when the missing event arrives.
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;Assumption: the provider's per-order sequence has no gaps (1, 2, 3, ...). An event that waits indefinitely
+ * means a missing predecessor; the inbox must surface it (alert, reconciliation), not apply it out of order.
+ *
+ * &lt;p&gt;An event the state machine rejects ({@link IllegalTransitionException}) is reported as a failed step and does not
+ * advance the sequence, so its successors wait behind it. On a CANCELLED order every event is applied immediately,
+ * which makes it IGNORED; nothing waits on a cancelled order.
+ */
+public final class OrderEventSequencer {
+
+<span class="fc" id="L37">    private static final Comparator&lt;PaymentEvent&gt; BY_SEQUENCE =</span>
+<span class="fc" id="L38">            Comparator.comparingLong(PaymentEvent::sequence).thenComparing(PaymentEvent::providerEventId);</span>
+
+    private final OrderStateMachine machine;
+
+<span class="fc" id="L42">    public OrderEventSequencer(OrderStateMachine machine) {</span>
+<span class="fc" id="L43">        this.machine = machine;</span>
+<span class="fc" id="L44">    }</span>
+
+    /** What happened to one event: a transition, or the reason it was rejected. Exactly one is non-null. */
+    public record Step(PaymentEvent event, Transition transition, IllegalTransitionException failure) {
+<span class="fc" id="L48">        public Step {</span>
+<span class="fc" id="L49">            Objects.requireNonNull(event, &quot;event&quot;);</span>
+<span class="fc bfc" id="L50" title="All 6 branches covered.">            if ((transition == null) == (failure == null)) {</span>
+<span class="fc" id="L51">                throw new IllegalArgumentException(&quot;exactly one of transition and failure must be set&quot;);</span>
+            }
+<span class="fc" id="L53">        }</span>
+
+        public boolean applied() {
+<span class="fc" id="L56">            return transition instanceof Transition.Applied;</span>
+        }
+    }
+
+    /**
+     * @param order the order after all applied steps
+     * @param steps processed events in the order they were handled
+     * @param duplicates events dropped because their providerEventId already appeared in this batch
+     * @param waiting events held back behind a gap, in sequence order
+     */
+    public record Result(Order order, List&lt;Step&gt; steps, List&lt;PaymentEvent&gt; duplicates, List&lt;PaymentEvent&gt; waiting) {
+<span class="fc" id="L67">        public Result {</span>
+<span class="fc" id="L68">            steps = List.copyOf(steps);</span>
+<span class="fc" id="L69">            duplicates = List.copyOf(duplicates);</span>
+<span class="fc" id="L70">            waiting = List.copyOf(waiting);</span>
+<span class="fc" id="L71">        }</span>
+    }
+
+    public Result drain(Order order, Collection&lt;PaymentEvent&gt; pending) {
+<span class="fc" id="L75">        Set&lt;String&gt; seen = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L76">        List&lt;PaymentEvent&gt; unique = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L77">        List&lt;PaymentEvent&gt; duplicates = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L78" title="All 2 branches covered.">        for (PaymentEvent event : pending) {</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">            if (!order.id().equals(event.orderId())) {</span>
+<span class="fc" id="L80">                throw new IllegalArgumentException(&quot;event &quot; + event.providerEventId() + &quot; is for order &quot;</span>
+<span class="fc" id="L81">                        + event.orderId() + &quot;, not &quot; + order.id());</span>
+            }
+<span class="fc bfc" id="L83" title="All 2 branches covered.">            if (seen.add(event.providerEventId())) {</span>
+<span class="fc" id="L84">                unique.add(event);</span>
+            } else {
+<span class="fc" id="L86">                duplicates.add(event);</span>
+            }
+<span class="fc" id="L88">        }</span>
+<span class="fc" id="L89">        unique.sort(BY_SEQUENCE);</span>
+
+<span class="fc" id="L91">        Order current = order;</span>
+<span class="fc" id="L92">        List&lt;Step&gt; steps = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L93">        List&lt;PaymentEvent&gt; waiting = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L94" title="All 2 branches covered.">        for (PaymentEvent event : unique) {</span>
+<span class="fc" id="L95">            boolean ready =</span>
+<span class="fc bfc" id="L96" title="All 4 branches covered.">                    current.status() == OrderStatus.CANCELLED || event.sequence() &lt;= current.lastEventSequence() + 1;</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">            if (!ready) {</span>
+<span class="fc" id="L98">                waiting.add(event);</span>
+<span class="fc" id="L99">                continue;</span>
+            }
+            try {
+<span class="fc" id="L102">                Transition t = machine.apply(current, event);</span>
+<span class="fc" id="L103">                steps.add(new Step(event, t, null));</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">                if (t instanceof Transition.Applied applied) {</span>
+<span class="fc" id="L105">                    current = applied.order();</span>
+                }
+<span class="fc" id="L107">            } catch (IllegalTransitionException e) {</span>
+<span class="fc" id="L108">                steps.add(new Step(event, null, e));</span>
+<span class="fc" id="L109">            }</span>
+<span class="fc" id="L110">        }</span>
+<span class="fc" id="L111">        return new Result(current, steps, duplicates, waiting);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

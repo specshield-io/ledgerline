@@ -1,0 +1,180 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChaosController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">ChaosController.java</span></div><h1>ChaosController.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.chaos.ChaosExceptions;
+import com.specshield.ledgerline.chaos.ChaosService;
+import com.specshield.ledgerline.chaos.Scenario;
+import com.specshield.ledgerline.chaos.ScenarioRun;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import java.net.URI;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.List;
+import java.util.UUID;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping(&quot;/api/v1/chaos&quot;)
+@Tag(
+        name = &quot;Chaos&quot;,
+        description =
+                &quot;Start a failure scenario on a fresh synthetic order and watch its timeline. Public, limited to 10&quot;
+                        + &quot; starts per minute per client and 3 runs in progress at once.&quot;)
+public class ChaosController {
+
+    private static final String PROBLEM = &quot;application/problem+json&quot;;
+
+    private final ChaosService chaos;
+
+<span class="fc" id="L44">    public ChaosController(ChaosService chaos) {</span>
+<span class="fc" id="L45">        this.chaos = chaos;</span>
+<span class="fc" id="L46">    }</span>
+
+    @Schema(name = &quot;ChaosScenario&quot;)
+<span class="fc" id="L49">    public record ScenarioResponse(</span>
+            @Schema(example = &quot;duplicate-storm&quot;) String name, String description) {}
+
+    @Schema(name = &quot;ScenarioRunStarted&quot;)
+<span class="fc" id="L53">    public record RunStarted(</span>
+            @Schema(description = &quot;Poll GET /api/v1/chaos/runs/{scenarioRunId}&quot;)
+            String scenarioRunId,
+
+            @Schema(description = &quot;The order this run created; poll GET /api/v1/orders/{orderId}/timeline&quot;)
+            UUID orderId,
+
+            @Schema(example = &quot;duplicate-storm&quot;) String scenario) {}
+
+    @Schema(name = &quot;ScenarioRunStep&quot;)
+<span class="fc" id="L63">    public record StepResponse(</span>
+            Instant at,
+            String description,
+
+            @Schema(nullable = true, description = &quot;The webhook receiver's answer, for deliveries&quot;)
+            Integer httpStatus,
+
+            @Schema(
+                    nullable = true,
+                    description = &quot;The receiver's problem type for an error answer&quot;,
+                    example = &quot;invalid-signature&quot;)
+            String result) {}
+
+    @Schema(name = &quot;ScenarioRun&quot;)
+<span class="fc" id="L77">    public record RunResponse(</span>
+            String scenarioRunId,
+            String scenario,
+            UUID orderId,
+            ScenarioRun.Status status,
+            Instant startedAt,
+            @Schema(nullable = true) Instant finishedAt,
+
+            @Schema(nullable = true, description = &quot;Order status when the run finished&quot;)
+            String orderStatus,
+
+            @Schema(nullable = true) String error,
+            List&lt;StepResponse&gt; steps) {
+
+        static RunResponse from(ScenarioRun run) {
+<span class="fc" id="L92">            return new RunResponse(</span>
+<span class="fc" id="L93">                    run.id(),</span>
+<span class="fc" id="L94">                    run.scenario().slug(),</span>
+<span class="fc" id="L95">                    run.orderId(),</span>
+<span class="fc" id="L96">                    run.status(),</span>
+<span class="fc" id="L97">                    run.startedAt(),</span>
+<span class="fc" id="L98">                    run.finishedAt(),</span>
+<span class="fc" id="L99">                    run.orderStatusAtEnd(),</span>
+<span class="fc" id="L100">                    run.error(),</span>
+<span class="fc" id="L101">                    run.steps().stream()</span>
+<span class="fc" id="L102">                            .map(s -&gt; new StepResponse(s.at(), s.description(), s.httpStatus(), s.result()))</span>
+<span class="fc" id="L103">                            .toList());</span>
+        }
+    }
+
+    @GetMapping(&quot;/scenarios&quot;)
+    @Operation(summary = &quot;List the chaos scenarios&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;Every scenario&quot;,
+            content =
+                    @Content(
+                            mediaType = &quot;application/json&quot;,
+                            array = @ArraySchema(schema = @Schema(implementation = ScenarioResponse.class))))
+    List&lt;ScenarioResponse&gt; scenarios() {
+<span class="fc" id="L117">        return Arrays.stream(Scenario.values())</span>
+<span class="fc" id="L118">                .map(s -&gt; new ScenarioResponse(s.slug(), s.description()))</span>
+<span class="fc" id="L119">                .toList();</span>
+    }
+
+    @PostMapping(&quot;/scenarios/{name}&quot;)
+    @Operation(
+            summary = &quot;Start a chaos scenario&quot;,
+            description = &quot;Creates a new synthetic order and drives it through the scenario with real signed MockPay&quot;
+                    + &quot; webhooks. Returns at once; the run continues in the background.&quot;)
+    @ApiResponse(
+            responseCode = &quot;202&quot;,
+            description = &quot;Started (or the replayed response)&quot;,
+            headers = @Header(name = &quot;Location&quot;, description = &quot;The run&quot;),
+            content = @Content(mediaType = &quot;application/json&quot;, schema = @Schema(implementation = RunStarted.class)))
+    @ApiResponse(
+            responseCode = &quot;404&quot;,
+            description = &quot;Unknown scenario&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    @ApiResponse(
+            responseCode = &quot;429&quot;,
+            description = &quot;Too many runs in progress, or too many starts from this client (Retry-After)&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    @ApiResponse(
+            responseCode = &quot;503&quot;,
+            description = &quot;The deployment lacks MockPay or the demo merchant this scenario needs&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    ResponseEntity&lt;RunStarted&gt; start(
+            @Parameter(
+                            in = ParameterIn.HEADER,
+                            required = true,
+                            description = &quot;Unique key for this request (8-128 characters, [A-Za-z0-9_-]); repeating&quot;
+                                    + &quot; it returns the same run&quot;)
+                    @RequestHeader(IdempotencyFilter.HEADER)
+                    @Size(min = 8, max = 128)
+                    @Pattern(regexp = &quot;[A-Za-z0-9_-]+&quot;)
+                    String idempotencyKey,
+            @Parameter(
+                            description = &quot;happy-path, duplicate-storm, tampered-webhook, replay-attack, out-of-order,&quot;
+                                    + &quot; merchant-down, merchant-slow or refund-flow&quot;)
+                    @PathVariable
+                    String name) {
+<span class="fc" id="L159">        Scenario scenario = Scenario.fromSlug(name).orElseThrow(() -&gt; new ChaosExceptions.ScenarioNotFound(name));</span>
+<span class="fc" id="L160">        ScenarioRun run = chaos.start(scenario);</span>
+<span class="fc" id="L161">        return ResponseEntity.accepted()</span>
+<span class="fc" id="L162">                .location(URI.create(&quot;/api/v1/chaos/runs/&quot; + run.id()))</span>
+<span class="fc" id="L163">                .body(new RunStarted(run.id(), run.orderId(), scenario.slug()));</span>
+    }
+
+    @GetMapping(&quot;/runs/{id}&quot;)
+    @Operation(summary = &quot;A scenario run and its steps (kept for an hour)&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;The run&quot;,
+            content = @Content(mediaType = &quot;application/json&quot;, schema = @Schema(implementation = RunResponse.class)))
+    @ApiResponse(
+            responseCode = &quot;404&quot;,
+            description = &quot;Unknown or expired run&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    RunResponse run(@PathVariable String id) {
+<span class="fc" id="L177">        return chaos.find(id).map(RunResponse::from).orElseThrow(() -&gt; new ChaosExceptions.RunNotFound(id));</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

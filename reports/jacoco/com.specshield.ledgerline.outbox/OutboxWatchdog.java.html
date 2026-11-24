@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OutboxWatchdog.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.outbox</a> &gt; <span class="el_source">OutboxWatchdog.java</span></div><h1>OutboxWatchdog.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.outbox;
+
+import com.specshield.ledgerline.application.OutboxStore;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+/**
+ * Crash recovery: a dispatcher that dies between claiming a row and recording its result leaves the row IN_FLIGHT.
+ * Rows claimed longer than {@code stuckAfter} ago go back to PENDING, due now. The attempt count is unchanged (the
+ * lost attempt may or may not have reached the merchant), which is why delivery is at-least-once.
+ *
+ * &lt;p&gt;{@code stuckAfter} (60 s) must stay well above the longest possible attempt (connect 2 s + response 3 s), or
+ * healthy deliveries would be released and sent twice.
+ */
+@Component
+public class OutboxWatchdog {
+
+<span class="fc" id="L22">    private static final Logger log = LoggerFactory.getLogger(OutboxWatchdog.class);</span>
+
+    private final OutboxStore store;
+    private final OutboxMetrics metrics;
+    private final Clock clock;
+    private final Duration stuckAfter;
+
+<span class="fc" id="L29">    public OutboxWatchdog(OutboxStore store, OutboxMetrics metrics, Clock clock, OutboxProperties properties) {</span>
+<span class="fc" id="L30">        this.store = store;</span>
+<span class="fc" id="L31">        this.metrics = metrics;</span>
+<span class="fc" id="L32">        this.clock = clock;</span>
+<span class="fc" id="L33">        this.stuckAfter = properties.stuckAfter();</span>
+<span class="fc" id="L34">    }</span>
+
+    /** Returns the number of rows released. */
+    public int releaseStuck() {
+<span class="fc" id="L38">        Instant now = clock.instant();</span>
+<span class="fc" id="L39">        int released = store.releaseStuck(</span>
+<span class="fc" id="L40">                now.minus(stuckAfter),</span>
+<span class="fc" id="L41">                &quot;released by watchdog: IN_FLIGHT longer than &quot; + stuckAfter.toSeconds() + &quot; s&quot;,</span>
+                now);
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        if (released &gt; 0) {</span>
+<span class="fc" id="L44">            metrics.released(released);</span>
+<span class="fc" id="L45">            log.warn(&quot;outbox watchdog returned {} stuck IN_FLIGHT row(s) to PENDING&quot;, released);</span>
+        }
+<span class="fc" id="L47">        return released;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

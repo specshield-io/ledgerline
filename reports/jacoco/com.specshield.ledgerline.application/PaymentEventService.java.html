@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PaymentEventService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.application</a> &gt; <span class="el_source">PaymentEventService.java</span></div><h1>PaymentEventService.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.application;
+
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderEventSequencer;
+import com.specshield.ledgerline.domain.OrderStatus;
+import com.specshield.ledgerline.domain.OrderStore;
+import com.specshield.ledgerline.domain.PaymentEvent;
+import com.specshield.ledgerline.domain.Transition;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Processes verified provider events through the inbox, in one transaction per delivery:
+ *
+ * &lt;ol&gt;
+ *   &lt;li&gt;store the event in the inbox; if (provider, event id) exists it is a DUPLICATE and nothing else happens;
+ *   &lt;li&gt;unknown type: IGNORED; unknown order: ORPHAN (retried by the orphan reprocessor);
+ *   &lt;li&gt;otherwise lock the order (SELECT ... FOR UPDATE) and apply all of its pending events in sequence order
+ *       through {@link OrderEventSequencer}; events after a gap stay pending until the missing one arrives;
+ *   &lt;li&gt;persist the order, every event's outcome, an audit row per event and a merchant notification in the
+ *       outbox for each applied change that merchants are told about ({@link MerchantNotifications}).
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;Any exception rolls the whole delivery back, including the inbox row, so the provider's retry is processed
+ * as new.
+ */
+@Service
+public class PaymentEventService {
+
+    static final String ACTOR_PREFIX = &quot;provider:&quot;;
+
+    private final PaymentInbox inbox;
+    private final OrderStore orders;
+    private final AuditTrail audit;
+    private final MerchantNotifications notifications;
+    private final OrderEventSequencer sequencer;
+    private final ProviderEventDecoder decoder;
+    private final PaymentEventHook hook;
+    private final Clock clock;
+    private final JsonMapper json;
+
+    public PaymentEventService(
+            PaymentInbox inbox,
+            OrderStore orders,
+            AuditTrail audit,
+            MerchantNotifications notifications,
+            OrderEventSequencer sequencer,
+            ProviderEventDecoder decoder,
+            PaymentEventHook hook,
+            Clock clock,
+<span class="fc" id="L64">            JsonMapper json) {</span>
+<span class="fc" id="L65">        this.inbox = inbox;</span>
+<span class="fc" id="L66">        this.orders = orders;</span>
+<span class="fc" id="L67">        this.audit = audit;</span>
+<span class="fc" id="L68">        this.notifications = notifications;</span>
+<span class="fc" id="L69">        this.sequencer = sequencer;</span>
+<span class="fc" id="L70">        this.decoder = decoder;</span>
+<span class="fc" id="L71">        this.hook = hook;</span>
+<span class="fc" id="L72">        this.clock = clock;</span>
+<span class="fc" id="L73">        this.json = json;</span>
+<span class="fc" id="L74">    }</span>
+
+<span class="fc" id="L76">    public enum Outcome {</span>
+<span class="fc" id="L77">        APPLIED,</span>
+<span class="fc" id="L78">        DUPLICATE,</span>
+<span class="fc" id="L79">        STALE,</span>
+<span class="fc" id="L80">        IGNORED,</span>
+<span class="fc" id="L81">        ORPHAN,</span>
+<span class="fc" id="L82">        FAILED,</span>
+        /** Stored, waiting behind a missing earlier event. */
+<span class="fc" id="L84">        PENDING</span>
+    }
+
+    /**
+     * @param outcome what happened to the delivered event
+     * @param applied events applied in this delivery (more than one when it closed a gap)
+     * @param stale events found stale in this delivery
+     */
+<span class="fc" id="L92">    public record Result(Outcome outcome, int applied, int stale) {}</span>
+
+    @Transactional
+    public Result process(DecodedEvent event, String payloadJson) {
+<span class="fc" id="L96">        Instant now = clock.instant();</span>
+<span class="fc" id="L97">        Optional&lt;Long&gt; inserted =</span>
+<span class="fc" id="L98">                inbox.insertIfAbsent(decoder.provider(), event.eventId(), event.orderId(), payloadJson, now);</span>
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (inserted.isEmpty()) {</span>
+<span class="fc" id="L100">            audit(event.orderId(), &quot;DUPLICATE&quot;, detail(event), now);</span>
+<span class="fc" id="L101">            return new Result(Outcome.DUPLICATE, 0, 0);</span>
+        }
+<span class="fc" id="L103">        long inboxId = inserted.get();</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">        if (!event.knownType()) {</span>
+<span class="fc" id="L105">            inbox.markProcessed(inboxId, Outcome.IGNORED.name(), now);</span>
+<span class="fc" id="L106">            audit(event.orderId(), &quot;EVENT_IGNORED&quot;, detail(event), now);</span>
+<span class="fc" id="L107">            return new Result(Outcome.IGNORED, 0, 0);</span>
+        }
+<span class="fc" id="L109">        Optional&lt;Order&gt; order = orders.findByIdForUpdate(event.orderId());</span>
+<span class="fc bfc" id="L110" title="All 2 branches covered.">        if (order.isEmpty()) {</span>
+<span class="fc" id="L111">            inbox.markProcessed(inboxId, Outcome.ORPHAN.name(), now);</span>
+<span class="fc" id="L112">            audit(event.orderId(), &quot;EVENT_ORPHAN&quot;, detail(event), now);</span>
+<span class="fc" id="L113">            return new Result(Outcome.ORPHAN, 0, 0);</span>
+        }
+<span class="fc" id="L115">        return applyPending(order.get(), event.eventId(), now);</span>
+    }
+
+    /** Re-processes the order's ORPHAN events received at or after {@code since}, if the order exists now. */
+    @Transactional
+    public Result reprocessOrphans(UUID orderId, Instant since) {
+<span class="fc" id="L121">        Instant now = clock.instant();</span>
+<span class="fc" id="L122">        Optional&lt;Order&gt; order = orders.findByIdForUpdate(orderId);</span>
+<span class="fc bfc" id="L123" title="All 4 branches covered.">        if (order.isEmpty() || inbox.reopenOrphans(orderId, since) == 0) {</span>
+<span class="fc" id="L124">            return new Result(Outcome.ORPHAN, 0, 0);</span>
+        }
+<span class="fc" id="L126">        return applyPending(order.get(), null, now);</span>
+    }
+
+    /** Records a delivery whose signature failed. Never touches the order. */
+    @Transactional
+    public void reject(String reason, byte[] body) {
+<span class="fc" id="L132">        Instant now = clock.instant();</span>
+<span class="fc" id="L133">        Map&lt;String, Object&gt; detail = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L134">        detail.put(&quot;reason&quot;, reason);</span>
+<span class="fc" id="L135">        detail.put(&quot;bodySha256&quot;, sha256(body));</span>
+<span class="fc" id="L136">        detail.put(&quot;bodyLength&quot;, body.length);</span>
+<span class="fc" id="L137">        String detailJson = json.writeValueAsString(detail);</span>
+<span class="fc" id="L138">        inbox.insertRejected(decoder.provider(), &quot;rejected_&quot; + UUID.randomUUID(), detailJson, now);</span>
+<span class="fc" id="L139">        audit(null, &quot;SECURITY_REJECTED&quot;, detail, now);</span>
+<span class="fc" id="L140">    }</span>
+
+    private Result applyPending(Order order, String currentEventId, Instant now) {
+<span class="fc" id="L143">        List&lt;PaymentInbox.PendingEvent&gt; pending = inbox.pendingForOrder(order.id());</span>
+<span class="fc" id="L144">        Map&lt;String, Long&gt; inboxIds = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L145">        List&lt;PaymentEvent&gt; events = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L146" title="All 2 branches covered.">        for (PaymentInbox.PendingEvent p : pending) {</span>
+<span class="fc" id="L147">            inboxIds.put(p.providerEventId(), p.id());</span>
+<span class="fc" id="L148">            events.add(decoder.decode(p.payloadJson()).event());</span>
+<span class="fc" id="L149">        }</span>
+
+<span class="fc" id="L151">        OrderEventSequencer.Result result = sequencer.drain(order, events);</span>
+<span class="fc" id="L152">        Outcome current = Outcome.PENDING;</span>
+<span class="fc" id="L153">        int applied = 0;</span>
+<span class="fc" id="L154">        int stale = 0;</span>
+<span class="fc" id="L155">        OrderStatus before = order.status();</span>
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        for (OrderEventSequencer.Step step : result.steps()) {</span>
+<span class="fc" id="L157">            PaymentEvent e = step.event();</span>
+<span class="fc" id="L158">            Outcome outcome = outcomeOf(step);</span>
+<span class="fc" id="L159">            Map&lt;String, Object&gt; detail = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L160">            detail.put(&quot;providerEventId&quot;, e.providerEventId());</span>
+<span class="fc" id="L161">            detail.put(&quot;type&quot;, e.type().name());</span>
+<span class="fc" id="L162">            detail.put(&quot;sequence&quot;, e.sequence());</span>
+<span class="fc" id="L163">            detail.put(&quot;from&quot;, before.name());</span>
+<span class="fc bfc" id="L164" title="All 4 branches covered.">            switch (step.transition()) {</span>
+<span class="fc" id="L165">                case Transition.Applied a -&gt; {</span>
+<span class="fc" id="L166">                    detail.put(&quot;to&quot;, a.newStatus().name());</span>
+<span class="fc" id="L167">                    notifications.statusChanged(before, a.order(), now);</span>
+<span class="fc" id="L168">                    before = a.newStatus();</span>
+<span class="fc" id="L169">                    applied++;</span>
+<span class="fc" id="L170">                }</span>
+<span class="fc" id="L171">                case Transition.Stale s -&gt; {</span>
+<span class="fc" id="L172">                    detail.put(&quot;reason&quot;, s.reason());</span>
+<span class="fc" id="L173">                    stale++;</span>
+<span class="fc" id="L174">                }</span>
+<span class="fc" id="L175">                case Transition.Ignored i -&gt; detail.put(&quot;reason&quot;, i.reason());</span>
+<span class="fc" id="L176">                case null -&gt; detail.put(&quot;reason&quot;, step.failure().getMessage());</span>
+            }
+<span class="fc" id="L178">            inbox.markProcessed(inboxIds.get(e.providerEventId()), outcome.name(), now);</span>
+<span class="fc" id="L179">            audit(order.id(), &quot;PAYMENT_EVENT_&quot; + outcome.name(), detail, now);</span>
+<span class="fc bfc" id="L180" title="All 2 branches covered.">            if (e.providerEventId().equals(currentEventId)) {</span>
+<span class="fc" id="L181">                current = outcome;</span>
+            }
+<span class="fc" id="L183">        }</span>
+<span class="pc bpc" id="L184" title="1 of 4 branches missed.">        if (currentEventId == null &amp;&amp; applied &gt; 0) {</span>
+<span class="fc" id="L185">            current = Outcome.APPLIED;</span>
+        }
+
+<span class="fc bfc" id="L188" title="All 2 branches covered.">        if (!result.order().equals(order)) {</span>
+<span class="fc" id="L189">            Order saved = orders.update(result.order());</span>
+<span class="fc" id="L190">            hook.beforeCommit(saved);</span>
+        }
+<span class="fc" id="L192">        return new Result(current, applied, stale);</span>
+    }
+
+    private static Outcome outcomeOf(OrderEventSequencer.Step step) {
+<span class="fc bfc" id="L196" title="All 2 branches covered.">        if (step.failure() != null) {</span>
+<span class="fc" id="L197">            return Outcome.FAILED;</span>
+        }
+<span class="fc bfc" id="L199" title="All 3 branches covered.">        return switch (step.transition()) {</span>
+<span class="fc" id="L200">            case Transition.Applied a -&gt; Outcome.APPLIED;</span>
+<span class="fc" id="L201">            case Transition.Stale s -&gt; Outcome.STALE;</span>
+<span class="fc" id="L202">            case Transition.Ignored i -&gt; Outcome.IGNORED;</span>
+        };
+    }
+
+    private Map&lt;String, Object&gt; detail(DecodedEvent event) {
+<span class="fc" id="L207">        Map&lt;String, Object&gt; detail = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L208">        detail.put(&quot;providerEventId&quot;, event.eventId());</span>
+<span class="fc" id="L209">        detail.put(&quot;type&quot;, event.type());</span>
+<span class="fc" id="L210">        return detail;</span>
+    }
+
+    private void audit(UUID orderId, String kind, Map&lt;String, Object&gt; detail, Instant now) {
+<span class="fc" id="L214">        audit.append(new AuditRecord(</span>
+                null,
+                orderId,
+                kind,
+<span class="fc" id="L218">                json.writeValueAsString(detail),</span>
+<span class="fc" id="L219">                ACTOR_PREFIX + decoder.provider(),</span>
+<span class="fc" id="L220">                MDC.get(OrderService.CORRELATION_ID_MDC_KEY),</span>
+                now));
+<span class="fc" id="L222">    }</span>
+
+    static String sha256(byte[] body) {
+        try {
+<span class="fc" id="L226">            return HexFormat.of().formatHex(MessageDigest.getInstance(&quot;SHA-256&quot;).digest(body));</span>
+<span class="nc" id="L227">        } catch (NoSuchAlgorithmException e) {</span>
+<span class="nc" id="L228">            throw new IllegalStateException(&quot;SHA-256 is required by every Java platform&quot;, e);</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

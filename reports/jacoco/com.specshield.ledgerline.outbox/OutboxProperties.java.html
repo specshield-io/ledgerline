@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OutboxProperties.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.outbox</a> &gt; <span class="el_source">OutboxProperties.java</span></div><h1>OutboxProperties.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.outbox;
+
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import java.time.Duration;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.validation.annotation.Validated;
+
+/**
+ * Outbox relay settings.
+ *
+ * @param dispatcherEnabled run the dispatcher and the watchdog on a schedule (tests call them directly instead)
+ * @param pollInterval delay between dispatcher runs
+ * @param batchSize rows claimed per run
+ * @param backoffBase base of the exponential backoff
+ * @param backoffCap upper bound of a single backoff delay
+ * @param maxAttempts delivery attempts before a row is DEAD
+ * @param stuckAfter IN_FLIGHT rows claimed longer ago than this are returned to PENDING by the watchdog
+ * @param watchdogInterval delay between watchdog runs
+ */
+@Validated
+@ConfigurationProperties(&quot;ledgerline.outbox&quot;)
+public record OutboxProperties(
+        boolean dispatcherEnabled,
+        Duration pollInterval,
+        @Min(1) @Max(500) int batchSize,
+        Duration backoffBase,
+        Duration backoffCap,
+        @Min(1) @Max(50) int maxAttempts,
+        Duration stuckAfter,
+        Duration watchdogInterval) {
+
+<span class="fc" id="L33">    public OutboxProperties {</span>
+<span class="fc bfc" id="L34" title="All 2 branches covered.">        pollInterval = pollInterval == null ? Duration.ofMillis(500) : pollInterval;</span>
+<span class="fc bfc" id="L35" title="All 2 branches covered.">        batchSize = batchSize == 0 ? 20 : batchSize;</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        backoffBase = backoffBase == null ? Duration.ofSeconds(2) : backoffBase;</span>
+<span class="fc bfc" id="L37" title="All 2 branches covered.">        backoffCap = backoffCap == null ? Duration.ofHours(1) : backoffCap;</span>
+<span class="fc bfc" id="L38" title="All 2 branches covered.">        maxAttempts = maxAttempts == 0 ? 8 : maxAttempts;</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        stuckAfter = stuckAfter == null ? Duration.ofSeconds(60) : stuckAfter;</span>
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        watchdogInterval = watchdogInterval == null ? Duration.ofSeconds(10) : watchdogInterval;</span>
+<span class="fc" id="L41">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

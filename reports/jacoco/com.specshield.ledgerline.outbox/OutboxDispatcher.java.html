@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OutboxDispatcher.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.outbox</a> &gt; <span class="el_source">OutboxDispatcher.java</span></div><h1>OutboxDispatcher.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.outbox;
+
+import com.specshield.ledgerline.application.OutboxMessage;
+import com.specshield.ledgerline.application.OutboxStore;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Component;
+
+/**
+ * Relays outbox rows to the merchant endpoint.
+ *
+ * &lt;p&gt;One run: claim up to {@code batchSize} due PENDING rows ({@code FOR UPDATE SKIP LOCKED}, marked IN_FLIGHT,
+ * committed), then deliver them concurrently on virtual threads, outside any transaction, and record each result:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;2xx: DELIVERED with {@code delivered_at};
+ *   &lt;li&gt;anything else (status, timeout, I/O): one more attempt, {@code last_error}, and either PENDING with
+ *       {@code next_attempt_at = now + backoff} or DEAD once the attempts are used up.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Several dispatchers (threads or instances) can run at once: SKIP LOCKED gives each a disjoint set of rows. A
+ * crash between claim and result leaves the row IN_FLIGHT until {@link OutboxWatchdog} returns it, so the row may be
+ * delivered again: delivery is at-least-once and receivers deduplicate by {@code Ledgerline-Event-Id}.
+ */
+@Component
+public class OutboxDispatcher {
+
+<span class="fc" id="L37">    private static final Logger log = LoggerFactory.getLogger(OutboxDispatcher.class);</span>
+
+    private final OutboxStore store;
+    private final MerchantDeliveryClient client;
+    private final BackoffPolicy backoff;
+    private final OutboxMetrics metrics;
+    private final ObservationRegistry observations;
+    private final Clock clock;
+    private final int batchSize;
+
+    public OutboxDispatcher(
+            OutboxStore store,
+            MerchantDeliveryClient client,
+            BackoffPolicy backoff,
+            OutboxMetrics metrics,
+            ObservationRegistry observations,
+            Clock clock,
+<span class="fc" id="L54">            OutboxProperties properties) {</span>
+<span class="fc" id="L55">        this.store = store;</span>
+<span class="fc" id="L56">        this.client = client;</span>
+<span class="fc" id="L57">        this.backoff = backoff;</span>
+<span class="fc" id="L58">        this.metrics = metrics;</span>
+<span class="fc" id="L59">        this.observations = observations;</span>
+<span class="fc" id="L60">        this.clock = clock;</span>
+<span class="fc" id="L61">        this.batchSize = properties.batchSize();</span>
+<span class="fc" id="L62">    }</span>
+
+    /** Claims and delivers one batch. Returns the number of rows claimed. */
+    public int dispatchOnce() {
+<span class="fc" id="L66">        List&lt;OutboxMessage&gt; batch = store.claimDue(batchSize, clock.instant());</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        if (batch.isEmpty()) {</span>
+<span class="fc" id="L68">            return 0;</span>
+        }
+<span class="fc" id="L70">        try (ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor()) {</span>
+<span class="fc bfc" id="L71" title="All 2 branches covered.">            for (OutboxMessage message : batch) {</span>
+<span class="fc" id="L72">                executor.submit(() -&gt; deliver(message));</span>
+<span class="fc" id="L73">            }</span>
+        } // close() waits for every delivery of the batch
+<span class="fc" id="L75">        return batch.size();</span>
+    }
+
+    private void deliver(OutboxMessage message) {
+<span class="fc" id="L79">        MDC.put(&quot;orderId&quot;, message.aggregateId().toString());</span>
+        try {
+<span class="fc" id="L81">            Observation observation = Observation.createNotStarted(&quot;outbox.deliver&quot;, observations)</span>
+<span class="fc" id="L82">                    .contextualName(&quot;outbox deliver&quot;)</span>
+<span class="fc" id="L83">                    .lowCardinalityKeyValue(&quot;event.type&quot;, message.eventType())</span>
+<span class="fc" id="L84">                    .highCardinalityKeyValue(&quot;outbox.id&quot;, Long.toString(message.id()))</span>
+<span class="fc" id="L85">                    .highCardinalityKeyValue(&quot;order.id&quot;, message.aggregateId().toString())</span>
+<span class="fc" id="L86">                    .highCardinalityKeyValue(&quot;attempt&quot;, Integer.toString(message.attempts() + 1));</span>
+<span class="fc" id="L87">            observation.observe(() -&gt; observation.lowCardinalityKeyValue(&quot;result&quot;, attempt(message)));</span>
+        } finally {
+<span class="fc" id="L89">            MDC.remove(&quot;orderId&quot;);</span>
+        }
+<span class="fc" id="L91">    }</span>
+
+    /** One attempt and its recorded result (span/timer {@code outbox.deliver}); returns the result tag. */
+    private String attempt(OutboxMessage message) {
+<span class="fc" id="L95">        long started = System.nanoTime();</span>
+        DeliveryResult result;
+        try {
+<span class="fc" id="L98">            result = client.deliver(message);</span>
+<span class="fc" id="L99">        } catch (RuntimeException e) {</span>
+<span class="fc" id="L100">            result = new DeliveryResult.Failed(</span>
+<span class="fc" id="L101">                    &quot;io&quot;, &quot;delivery failed: &quot; + e.getClass().getSimpleName());</span>
+<span class="fc" id="L102">        }</span>
+<span class="fc" id="L103">        Duration latency = Duration.ofNanos(System.nanoTime() - started);</span>
+<span class="fc" id="L104">        Instant now = clock.instant();</span>
+<span class="fc" id="L105">        int attempt = message.attempts() + 1;</span>
+        boolean recorded;
+<span class="fc bfc" id="L107" title="All 2 branches covered.">        switch (result) {</span>
+<span class="fc" id="L108">            case DeliveryResult.Delivered d -&gt; {</span>
+<span class="fc" id="L109">                recorded = store.markDelivered(message.id(), message.claimedAt(), now);</span>
+<span class="fc" id="L110">                metrics.delivered(latency);</span>
+<span class="fc" id="L111">            }</span>
+<span class="fc" id="L112">            case DeliveryResult.Failed f -&gt; {</span>
+<span class="fc" id="L113">                metrics.failed(f.reason(), latency);</span>
+<span class="fc bfc" id="L114" title="All 2 branches covered.">                recorded = switch (backoff.next(attempt + 1)) {</span>
+<span class="fc" id="L115">                    case BackoffPolicy.Retry r -&gt;</span>
+<span class="fc" id="L116">                        store.markRetry(message.id(), message.claimedAt(), f.message(), now.plus(r.delay()));</span>
+<span class="fc" id="L117">                    case BackoffPolicy.Dead x -&gt; {</span>
+<span class="fc" id="L118">                        boolean dead = store.markDead(message.id(), message.claimedAt(), f.message());</span>
+<span class="fc bfc" id="L119" title="All 2 branches covered.">                        if (dead) {</span>
+<span class="fc" id="L120">                            metrics.dead();</span>
+<span class="fc" id="L121">                            log.warn(</span>
+                                    &quot;outbox message {} ({}) is DEAD after {} attempts: {}&quot;,
+<span class="fc" id="L123">                                    message.id(),</span>
+<span class="fc" id="L124">                                    message.eventType(),</span>
+<span class="fc" id="L125">                                    attempt,</span>
+<span class="fc" id="L126">                                    f.message());</span>
+                        }
+<span class="fc" id="L128">                        yield dead;</span>
+                    }
+<span class="fc" id="L130">                };</span>
+            }
+        }
+<span class="fc bfc" id="L133" title="All 2 branches covered.">        if (!recorded) {</span>
+            // The watchdog released the row while we were delivering; its newer state wins.
+<span class="fc" id="L135">            log.info(</span>
+                    &quot;outbox message {}: result of attempt {} not recorded, the claim was released&quot;,
+<span class="fc" id="L137">                    message.id(),</span>
+<span class="fc" id="L138">                    attempt);</span>
+        }
+<span class="fc bfc" id="L140" title="All 2 branches covered.">        return result instanceof DeliveryResult.Failed f ? f.reason() : &quot;delivered&quot;;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

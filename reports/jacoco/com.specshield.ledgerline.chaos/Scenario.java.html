@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Scenario.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.chaos</a> &gt; <span class="el_source">Scenario.java</span></div><h1>Scenario.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.chaos;
+
+import java.util.Arrays;
+import java.util.Optional;
+
+/** The scenarios a visitor can start, by URL name. */
+<span class="fc" id="L7">public enum Scenario {</span>
+<span class="fc" id="L8">    HAPPY_PATH(&quot;happy-path&quot;, &quot;Create an order and pay it through MockPay; ends PAID.&quot;),</span>
+<span class="fc" id="L9">    DUPLICATE_STORM(&quot;duplicate-storm&quot;, &quot;The success event is delivered 5 times at once; applied once, ends PAID.&quot;),</span>
+<span class="fc" id="L10">    TAMPERED_WEBHOOK(</span>
+            &quot;tampered-webhook&quot;, &quot;The success event's body is altered after signing; rejected, stays PAYMENT_PENDING.&quot;),
+<span class="fc" id="L12">    REPLAY_ATTACK(</span>
+            &quot;replay-attack&quot;,
+            &quot;The success event carries a valid signature 10 minutes old; rejected, stays PAYMENT_PENDING.&quot;),
+<span class="fc" id="L15">    OUT_OF_ORDER(&quot;out-of-order&quot;, &quot;SUCCEEDED (sequence 2) arrives, then a late FAILED (sequence 1); STALE, ends PAID.&quot;),</span>
+<span class="fc" id="L16">    MERCHANT_DOWN(</span>
+            &quot;merchant-down&quot;,
+            &quot;The demo merchant answers 500 for 2 minutes; the order.paid notification is retried until delivered.&quot;),
+<span class="fc" id="L19">    MERCHANT_SLOW(</span>
+            &quot;merchant-slow&quot;,
+            &quot;The demo merchant takes 10 s for 2 minutes; deliveries time out after 3 s and are retried.&quot;),
+<span class="fc" id="L22">    REFUND_FLOW(&quot;refund-flow&quot;, &quot;Pay, refund part, then refund the rest; ends REFUNDED.&quot;);</span>
+
+    private final String slug;
+    private final String description;
+
+<span class="fc" id="L27">    Scenario(String slug, String description) {</span>
+<span class="fc" id="L28">        this.slug = slug;</span>
+<span class="fc" id="L29">        this.description = description;</span>
+<span class="fc" id="L30">    }</span>
+
+    public String slug() {
+<span class="fc" id="L33">        return slug;</span>
+    }
+
+    public String description() {
+<span class="fc" id="L37">        return description;</span>
+    }
+
+    public static Optional&lt;Scenario&gt; fromSlug(String slug) {
+<span class="fc" id="L41">        return Arrays.stream(values()).filter(s -&gt; s.slug.equals(slug)).findFirst();</span>
+    }
+
+    /** Needs the built-in demo merchant (local profile). */
+    boolean needsMerchantSink() {
+<span class="fc bfc" id="L46" title="All 4 branches covered.">        return this == MERCHANT_DOWN || this == MERCHANT_SLOW;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Money.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.domain</a> &gt; <span class="el_source">Money.java</span></div><h1>Money.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.domain;
+
+/**
+ * An amount of money in minor units (cents) together with its ISO 4217 currency.
+ *
+ * &lt;p&gt;Ledgerline supports {@code &quot;USD&quot;} only. Amounts are never negative. Arithmetic is overflow safe: it throws
+ * {@link ArithmeticException} instead of wrapping around.
+ */
+public record Money(long amountMinor, String currency) implements Comparable&lt;Money&gt; {
+
+    public static final String USD = &quot;USD&quot;;
+
+<span class="fc" id="L13">    public Money {</span>
+<span class="fc" id="L14">        requireSupportedCurrency(currency);</span>
+<span class="fc bfc" id="L15" title="All 2 branches covered.">        if (amountMinor &lt; 0) {</span>
+<span class="fc" id="L16">            throw new IllegalArgumentException(&quot;amountMinor must not be negative, was &quot; + amountMinor);</span>
+        }
+<span class="fc" id="L18">    }</span>
+
+    public static Money usd(long amountMinor) {
+<span class="fc" id="L21">        return new Money(amountMinor, USD);</span>
+    }
+
+    public static Money zero() {
+<span class="fc" id="L25">        return usd(0);</span>
+    }
+
+    /** Throws {@link IllegalArgumentException} unless {@code currency} is exactly {@code &quot;USD&quot;}. */
+    public static void requireSupportedCurrency(String currency) {
+<span class="fc bfc" id="L30" title="All 2 branches covered.">        if (!USD.equals(currency)) {</span>
+<span class="fc" id="L31">            throw new IllegalArgumentException(&quot;currency must be &quot; + USD + &quot;, was &quot; + currency);</span>
+        }
+<span class="fc" id="L33">    }</span>
+
+    /** @throws ArithmeticException if the sum overflows {@code long} */
+    public Money plus(Money other) {
+<span class="fc" id="L37">        return new Money(Math.addExact(amountMinor, sameCurrency(other).amountMinor), currency);</span>
+    }
+
+    /**
+     * @throws ArithmeticException if the difference overflows {@code long}
+     * @throws IllegalArgumentException if the result would be negative
+     */
+    public Money minus(Money other) {
+<span class="fc" id="L45">        return new Money(Math.subtractExact(amountMinor, sameCurrency(other).amountMinor), currency);</span>
+    }
+
+    public boolean isZero() {
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        return amountMinor == 0;</span>
+    }
+
+    public boolean isGreaterThan(Money other) {
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        return compareTo(other) &gt; 0;</span>
+    }
+
+    @Override
+    public int compareTo(Money other) {
+<span class="fc" id="L58">        return Long.compare(amountMinor, sameCurrency(other).amountMinor);</span>
+    }
+
+    private Money sameCurrency(Money other) {
+<span class="pc bpc" id="L62" title="1 of 2 branches missed.">        if (!currency.equals(other.currency)) {</span>
+<span class="nc" id="L63">            throw new IllegalArgumentException(&quot;currency mismatch: &quot; + currency + &quot; vs &quot; + other.currency);</span>
+        }
+<span class="fc" id="L65">        return other;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

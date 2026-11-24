@@ -1,0 +1,121 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MerchantSinkController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.webhook</a> &gt; <span class="el_source">MerchantSinkController.java</span></div><h1>MerchantSinkController.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.webhook;
+
+import com.specshield.ledgerline.outbox.MerchantDeliveryClient;
+import com.specshield.ledgerline.web.ProblemResponses;
+import com.specshield.ledgerline.web.ProblemTypes;
+import io.swagger.v3.oas.annotations.Hidden;
+import jakarta.servlet.http.HttpServletRequest;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * The demo merchant endpoint ({@code ledgerline.merchant.sink.enabled}). Verifies {@code Ledgerline-Signature} over
+ * the raw bytes like a real merchant should, records every request, and answers according to
+ * {@link MerchantSink#mode()}. Hidden from the OpenAPI document: it simulates a third party, it is not our API.
+ */
+@Hidden
+@RestController
+@ConditionalOnProperty(name = &quot;ledgerline.merchant.sink.enabled&quot;, havingValue = &quot;true&quot;)
+public class MerchantSinkController {
+
+    public static final String PATH = &quot;/demo/merchant-sink&quot;;
+    static final int MAX_BODY_BYTES = 64 * 1024;
+
+<span class="fc" id="L38">    private static final Logger log = LoggerFactory.getLogger(MerchantSinkController.class);</span>
+
+    private final MerchantSink sink;
+    private final JsonMapper json;
+
+<span class="fc" id="L43">    public MerchantSinkController(MerchantSink sink, JsonMapper json) {</span>
+<span class="fc" id="L44">        this.sink = sink;</span>
+<span class="fc" id="L45">        this.json = json;</span>
+<span class="fc" id="L46">    }</span>
+
+    @PostMapping(PATH)
+    ResponseEntity&lt;?&gt; receive(
+            @RequestHeader(name = MerchantDeliveryClient.SIGNATURE_HEADER, required = false) String signature,
+            @RequestHeader(name = MerchantDeliveryClient.EVENT_ID_HEADER, required = false) String eventId,
+            @RequestHeader(name = MerchantDeliveryClient.ATTEMPT_HEADER, required = false) String attempt,
+            @RequestBody byte[] body,
+            HttpServletRequest request)
+            throws InterruptedException {
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        boolean valid = body.length &lt;= MAX_BODY_BYTES;</span>
+<span class="fc bfc" id="L57" title="All 2 branches covered.">        if (valid) {</span>
+            try {
+<span class="fc" id="L59">                sink.verifier().verify(signature, body, sink.clock().instant());</span>
+<span class="fc" id="L60">            } catch (InvalidSignatureException e) {</span>
+<span class="fc" id="L61">                valid = false;</span>
+<span class="fc" id="L62">            }</span>
+        }
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        String type = valid ? eventType(body) : null;</span>
+<span class="fc bfc" id="L65" title="All 2 branches covered.">        if (!valid) {</span>
+<span class="fc" id="L66">            sink.record(eventId, attempt, null, false, 400);</span>
+<span class="fc" id="L67">            log.info(&quot;merchant sink rejected a delivery: invalid signature&quot;);</span>
+<span class="fc" id="L68">            return ResponseEntity.badRequest()</span>
+<span class="fc" id="L69">                    .contentType(MediaType.APPLICATION_PROBLEM_JSON)</span>
+<span class="fc" id="L70">                    .body(ProblemResponses.problem(</span>
+                            HttpStatus.BAD_REQUEST,
+                            ProblemTypes.INVALID_SIGNATURE,
+                            &quot;Invalid signature&quot;,
+                            &quot;The Ledgerline-Signature header is missing, malformed, expired or does not match.&quot;,
+<span class="fc" id="L75">                            request.getRequestURI()));</span>
+        }
+<span class="fc bfc" id="L77" title="All 3 branches covered.">        switch (sink.mode()) {</span>
+            case FAIL -&gt; {
+<span class="fc" id="L79">                sink.record(eventId, attempt, type, true, 500);</span>
+<span class="fc" id="L80">                return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)</span>
+<span class="fc" id="L81">                        .contentType(MediaType.APPLICATION_PROBLEM_JSON)</span>
+<span class="fc" id="L82">                        .body(ProblemResponses.problem(</span>
+                                HttpStatus.INTERNAL_SERVER_ERROR,
+                                ProblemTypes.INTERNAL_ERROR,
+                                &quot;Merchant unavailable&quot;,
+                                &quot;The demo merchant is configured to fail.&quot;,
+<span class="fc" id="L87">                                request.getRequestURI()));</span>
+            }
+<span class="fc" id="L89">            case SLOW -&gt; Thread.sleep(sink.slowDelay());</span>
+            case OK -&gt; {
+                // answer immediately
+            }
+        }
+<span class="fc" id="L94">        boolean duplicate = sink.record(eventId, attempt, type, true, 200);</span>
+<span class="fc" id="L95">        Map&lt;String, Object&gt; ack = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L96">        ack.put(&quot;received&quot;, true);</span>
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        if (duplicate) {</span>
+<span class="fc" id="L98">            ack.put(&quot;duplicate&quot;, true);</span>
+        }
+<span class="fc" id="L100">        return ResponseEntity.ok(ack);</span>
+    }
+
+    @GetMapping(PATH)
+    Map&lt;String, Object&gt; deliveries() {
+<span class="fc" id="L105">        Map&lt;String, Object&gt; view = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L106">        view.put(&quot;mode&quot;, sink.mode());</span>
+<span class="fc" id="L107">        List&lt;MerchantSink.Delivery&gt; deliveries = sink.deliveries();</span>
+<span class="fc" id="L108">        view.put(&quot;deliveries&quot;, deliveries);</span>
+<span class="fc" id="L109">        return view;</span>
+    }
+
+    private String eventType(byte[] body) {
+        try {
+<span class="fc" id="L114">            JsonNode type = json.readTree(body).get(&quot;type&quot;);</span>
+<span class="fc bfc" id="L115" title="All 4 branches covered.">            return type == null || !type.isString() ? null : type.asString();</span>
+<span class="fc" id="L116">        } catch (RuntimeException e) {</span>
+<span class="fc" id="L117">            return null;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

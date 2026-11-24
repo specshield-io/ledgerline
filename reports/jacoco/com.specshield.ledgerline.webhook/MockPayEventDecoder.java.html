@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MockPayEventDecoder.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.webhook</a> &gt; <span class="el_source">MockPayEventDecoder.java</span></div><h1>MockPayEventDecoder.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.webhook;
+
+import com.specshield.ledgerline.application.DecodedEvent;
+import com.specshield.ledgerline.application.ProviderEventDecoder;
+import com.specshield.ledgerline.domain.Money;
+import com.specshield.ledgerline.domain.PaymentEvent;
+import com.specshield.ledgerline.domain.PaymentEventType;
+import java.time.DateTimeException;
+import java.time.Instant;
+import java.util.Arrays;
+import java.util.UUID;
+import java.util.regex.Pattern;
+import org.springframework.stereotype.Component;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Decodes MockPay's event JSON: {@code {id, type, created, sequence, data: {orderId, amountMinor, currency}}}.
+ * Only called after the signature was verified. Unknown types decode with {@code event == null}; anything that is
+ * not a well-formed event is a {@link MalformedEventException}.
+ */
+@Component
+public class MockPayEventDecoder implements ProviderEventDecoder {
+
+    public static final String PROVIDER = &quot;mockpay&quot;;
+<span class="fc" id="L27">    private static final Pattern EVENT_ID = Pattern.compile(&quot;[A-Za-z0-9_-]{1,255}&quot;);</span>
+
+    private final JsonMapper json;
+
+<span class="fc" id="L31">    public MockPayEventDecoder(JsonMapper json) {</span>
+<span class="fc" id="L32">        this.json = json;</span>
+<span class="fc" id="L33">    }</span>
+
+    @Override
+    public String provider() {
+<span class="fc" id="L37">        return PROVIDER;</span>
+    }
+
+    @Override
+    public DecodedEvent decode(String payloadJson) {
+        JsonNode root;
+        try {
+<span class="fc" id="L44">            root = json.readTree(payloadJson);</span>
+<span class="fc" id="L45">        } catch (JacksonException e) {</span>
+<span class="fc" id="L46">            throw new MalformedEventException(&quot;body is not JSON&quot;);</span>
+<span class="fc" id="L47">        }</span>
+<span class="pc bpc" id="L48" title="1 of 4 branches missed.">        if (root == null || !root.isObject()) {</span>
+<span class="fc" id="L49">            throw new MalformedEventException(&quot;body is not a JSON object&quot;);</span>
+        }
+<span class="fc" id="L51">        String id = text(root, &quot;id&quot;);</span>
+<span class="fc bfc" id="L52" title="All 4 branches covered.">        if (id == null || !EVENT_ID.matcher(id).matches()) {</span>
+<span class="fc" id="L53">            throw new MalformedEventException(&quot;id is missing or invalid&quot;);</span>
+        }
+<span class="fc" id="L55">        String type = text(root, &quot;type&quot;);</span>
+<span class="pc bpc" id="L56" title="1 of 4 branches missed.">        if (type == null || type.length() &gt; 64) {</span>
+<span class="fc" id="L57">            throw new MalformedEventException(&quot;type is missing or invalid&quot;);</span>
+        }
+<span class="fc" id="L59">        JsonNode data = root.get(&quot;data&quot;);</span>
+<span class="pc bpc" id="L60" title="2 of 4 branches missed.">        UUID orderId = data != null &amp;&amp; data.isObject() ? uuid(text(data, &quot;orderId&quot;)) : null;</span>
+
+        boolean known =
+<span class="fc" id="L63">                Arrays.stream(PaymentEventType.values()).anyMatch(t -&gt; t.name().equals(type));</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">        if (!known) {</span>
+<span class="fc" id="L65">            return new DecodedEvent(id, type, orderId, null);</span>
+        }
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        if (orderId == null) {</span>
+<span class="fc" id="L68">            throw new MalformedEventException(&quot;data.orderId is missing or invalid&quot;);</span>
+        }
+<span class="fc" id="L70">        long created = integral(root, &quot;created&quot;);</span>
+<span class="fc" id="L71">        long sequence = integral(root, &quot;sequence&quot;);</span>
+<span class="fc" id="L72">        long amount = integral(data, &quot;amountMinor&quot;);</span>
+<span class="fc bfc" id="L73" title="All 2 branches covered.">        if (!Money.USD.equals(text(data, &quot;currency&quot;))) {</span>
+<span class="fc" id="L74">            throw new MalformedEventException(&quot;data.currency must be USD&quot;);</span>
+        }
+        try {
+<span class="fc" id="L77">            PaymentEvent event = new PaymentEvent(</span>
+<span class="fc" id="L78">                    id, PaymentEventType.valueOf(type), orderId, amount, Instant.ofEpochSecond(created), sequence);</span>
+<span class="fc" id="L79">            return new DecodedEvent(id, type, orderId, event);</span>
+<span class="fc" id="L80">        } catch (IllegalArgumentException | DateTimeException e) {</span>
+<span class="fc" id="L81">            throw new MalformedEventException(&quot;event fields are out of range&quot;);</span>
+        }
+    }
+
+    private static String text(JsonNode node, String field) {
+<span class="fc" id="L86">        JsonNode value = node.get(field);</span>
+<span class="pc bpc" id="L87" title="1 of 4 branches missed.">        return value != null &amp;&amp; value.isString() ? value.asString() : null;</span>
+    }
+
+    private static long integral(JsonNode node, String field) {
+<span class="fc" id="L91">        JsonNode value = node.get(field);</span>
+<span class="pc bpc" id="L92" title="2 of 6 branches missed.">        if (value == null || !value.isIntegralNumber() || !value.canConvertToLong()) {</span>
+<span class="fc" id="L93">            throw new MalformedEventException(field + &quot; must be an integer&quot;);</span>
+        }
+<span class="fc" id="L95">        return value.asLong();</span>
+    }
+
+    private static UUID uuid(String value) {
+<span class="pc bpc" id="L99" title="1 of 4 branches missed.">        if (value == null || value.length() != 36) {</span>
+<span class="fc" id="L100">            return null;</span>
+        }
+        try {
+<span class="fc" id="L103">            return UUID.fromString(value);</span>
+<span class="nc" id="L104">        } catch (IllegalArgumentException e) {</span>
+<span class="nc" id="L105">            return null;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

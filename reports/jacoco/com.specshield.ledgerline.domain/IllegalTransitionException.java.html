@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IllegalTransitionException.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.domain</a> &gt; <span class="el_source">IllegalTransitionException.java</span></div><h1>IllegalTransitionException.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.domain;
+
+/** Thrown when an event or command is not allowed in the order's current state. */
+public final class IllegalTransitionException extends RuntimeException {
+
+    private final OrderStatus from;
+    private final OrderStatus to;
+    private final String event;
+
+    public IllegalTransitionException(OrderStatus from, OrderStatus to, String event, String reason) {
+<span class="fc" id="L11">        super(&quot;Illegal transition from=&quot; + from + &quot; to=&quot; + to + &quot; event=&quot; + event + &quot;: &quot; + reason);</span>
+<span class="fc" id="L12">        this.from = from;</span>
+<span class="fc" id="L13">        this.to = to;</span>
+<span class="fc" id="L14">        this.event = event;</span>
+<span class="fc" id="L15">    }</span>
+
+    public OrderStatus from() {
+<span class="fc" id="L18">        return from;</span>
+    }
+
+    /** The state the event or command would have led to. */
+    public OrderStatus to() {
+<span class="fc" id="L23">        return to;</span>
+    }
+
+    public String event() {
+<span class="fc" id="L27">        return event;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

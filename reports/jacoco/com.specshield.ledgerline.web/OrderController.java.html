@@ -1,0 +1,234 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">OrderController.java</span></div><h1>OrderController.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.application.OrderService;
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderStatus;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.enums.ParameterIn;
+import io.swagger.v3.oas.annotations.headers.Header;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
+import java.net.URI;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.ResponseStatus;
+import org.springframework.web.bind.annotation.RestController;
+import tools.jackson.databind.json.JsonMapper;
+
+@RestController
+@RequestMapping(&quot;/api/v1/orders&quot;)
+@Tag(name = &quot;Orders&quot;, description = &quot;Create, read, pay and cancel orders&quot;)
+public class OrderController {
+
+    private static final String PROBLEM = &quot;application/problem+json&quot;;
+
+    private static final String KEY_DESCRIPTION =
+            &quot;Unique key for this request (8-128 characters, [A-Za-z0-9_-]). Repeating the same request with the same&quot;
+                    + &quot; key replays the stored response; the same key with a different request returns 422. Keys&quot;
+                    + &quot; expire after 24 hours.&quot;;
+
+    private final OrderService orders;
+    private final JsonMapper json;
+
+<span class="fc" id="L52">    public OrderController(OrderService orders, JsonMapper json) {</span>
+<span class="fc" id="L53">        this.orders = orders;</span>
+<span class="fc" id="L54">        this.json = json;</span>
+<span class="fc" id="L55">    }</span>
+
+    @PostMapping
+    @Operation(
+            summary = &quot;Create an order&quot;,
+            responses = {
+                @ApiResponse(
+                        responseCode = &quot;201&quot;,
+                        description = &quot;Created (or replayed)&quot;,
+                        headers = {
+                            @Header(name = &quot;Location&quot;, description = &quot;URL of the new order&quot;),
+                            @Header(name = &quot;Idempotent-Replayed&quot;, description = &quot;true when replayed&quot;)
+                        },
+                        content =
+                                @Content(
+                                        mediaType = &quot;application/json&quot;,
+                                        schema = @Schema(implementation = OrderResponse.class))),
+                @ApiResponse(
+                        responseCode = &quot;400&quot;,
+                        description = &quot;Validation error, missing or invalid Idempotency-Key&quot;,
+                        content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF))),
+                @ApiResponse(
+                        responseCode = &quot;409&quot;,
+                        description = &quot;A request with this Idempotency-Key is in progress (Retry-After: 1)&quot;,
+                        content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF))),
+                @ApiResponse(
+                        responseCode = &quot;422&quot;,
+                        description = &quot;Idempotency-Key reused with a different request&quot;,
+                        content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+            })
+    ResponseEntity&lt;OrderResponse&gt; create(
+            @Parameter(in = ParameterIn.HEADER, required = true, description = KEY_DESCRIPTION)
+                    @RequestHeader(IdempotencyFilter.HEADER)
+                    @Size(min = 8, max = 128)
+                    @Pattern(regexp = &quot;[A-Za-z0-9_-]+&quot;)
+                    String idempotencyKey,
+            @Valid @RequestBody CreateOrderRequest request) {
+<span class="fc" id="L92">        Order order = orders.create(request.merchantRef(), request.amountMinor(), request.currency());</span>
+<span class="fc" id="L93">        return ResponseEntity.created(URI.create(&quot;/api/v1/orders/&quot; + order.id()))</span>
+<span class="fc" id="L94">                .body(OrderResponse.from(order));</span>
+    }
+
+    @GetMapping(&quot;/{id}&quot;)
+    @Operation(summary = &quot;Get an order&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;The order&quot;,
+            content = @Content(mediaType = &quot;application/json&quot;, schema = @Schema(implementation = OrderResponse.class)))
+    @ApiResponse(
+            responseCode = &quot;404&quot;,
+            description = &quot;Order not found&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    OrderResponse get(@PathVariable UUID id) {
+<span class="fc" id="L108">        return OrderResponse.from(orders.get(id));</span>
+    }
+
+    @GetMapping
+    @Operation(summary = &quot;List orders, newest first&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;A page of orders&quot;,
+            content =
+                    @Content(
+                            mediaType = &quot;application/json&quot;,
+                            schema = @Schema(implementation = OrderPageResponse.class)))
+    @ApiResponse(
+            responseCode = &quot;400&quot;,
+            description = &quot;Invalid status, page or size&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    OrderPageResponse list(
+            @Parameter(description = &quot;Only orders in this status&quot;) @RequestParam(required = false) OrderStatus status,
+            @Parameter(description = &quot;Zero-based page number&quot;) @RequestParam(defaultValue = &quot;0&quot;) @Min(0) int page,
+            @Parameter(description = &quot;Page size, at most 100&quot;) @RequestParam(defaultValue = &quot;20&quot;) @Min(1) @Max(100)
+                    int size) {
+<span class="fc" id="L129">        return OrderPageResponse.from(orders.list(Optional.ofNullable(status), page, size));</span>
+    }
+
+    @PostMapping(&quot;/{id}/pay&quot;)
+    @ResponseStatus(HttpStatus.ACCEPTED)
+    @Operation(
+            summary = &quot;Ask MockPay to start a payment&quot;,
+            description = &quot;Allowed for CREATED and PAYMENT_FAILED orders. The status changes later, when MockPay&quot;
+                    + &quot; reports payment events.&quot;)
+    @ApiResponse(
+            responseCode = &quot;404&quot;,
+            description = &quot;Order not found&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    @ApiResponse(
+            responseCode = &quot;409&quot;,
+            description = &quot;Order not payable in its state, or request with this key in progress&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    @ApiResponse(
+            responseCode = &quot;422&quot;,
+            description = &quot;Idempotency-Key reused with a different request&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    PaymentRequestResponse pay(
+            @Parameter(in = ParameterIn.HEADER, required = true, description = KEY_DESCRIPTION)
+                    @RequestHeader(IdempotencyFilter.HEADER)
+                    @Size(min = 8, max = 128)
+                    @Pattern(regexp = &quot;[A-Za-z0-9_-]+&quot;)
+                    String idempotencyKey,
+            @PathVariable UUID id) {
+<span class="fc" id="L157">        OrderService.PaymentRequested requested = orders.pay(id);</span>
+<span class="fc" id="L158">        return new PaymentRequestResponse(</span>
+<span class="fc" id="L159">                requested.order().id(), requested.order().status(), requested.paymentReference());</span>
+    }
+
+    @PostMapping(&quot;/{id}/cancel&quot;)
+    @Operation(summary = &quot;Cancel an order&quot;, description = &quot;Only CREATED orders can be cancelled.&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;The cancelled order (or the replayed response)&quot;,
+            content = @Content(mediaType = &quot;application/json&quot;, schema = @Schema(implementation = OrderResponse.class)))
+    @ApiResponse(
+            responseCode = &quot;404&quot;,
+            description = &quot;Order not found&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    @ApiResponse(
+            responseCode = &quot;409&quot;,
+            description = &quot;Order not cancellable in its state, concurrent change, or request in progress&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    @ApiResponse(
+            responseCode = &quot;422&quot;,
+            description = &quot;Idempotency-Key reused with a different request&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    OrderResponse cancel(
+            @Parameter(in = ParameterIn.HEADER, required = true, description = KEY_DESCRIPTION)
+                    @RequestHeader(IdempotencyFilter.HEADER)
+                    @Size(min = 8, max = 128)
+                    @Pattern(regexp = &quot;[A-Za-z0-9_-]+&quot;)
+                    String idempotencyKey,
+            @PathVariable UUID id) {
+<span class="fc" id="L187">        return OrderResponse.from(orders.cancel(id));</span>
+    }
+
+    @GetMapping(&quot;/{id}/deliveries&quot;)
+    @Operation(summary = &quot;Merchant notifications for an order and their delivery state, oldest first&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;The order's outbox rows&quot;,
+            content =
+                    @Content(
+                            mediaType = &quot;application/json&quot;,
+                            array = @ArraySchema(schema = @Schema(implementation = DeliveryResponse.class))))
+    @ApiResponse(
+            responseCode = &quot;404&quot;,
+            description = &quot;Order not found&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    List&lt;DeliveryResponse&gt; deliveries(@PathVariable UUID id) {
+<span class="fc" id="L204">        return orders.deliveries(id).stream().map(DeliveryResponse::from).toList();</span>
+    }
+
+    @GetMapping(&quot;/{id}/timeline&quot;)
+    @Operation(summary = &quot;Audit log and provider events for an order, oldest first&quot;)
+    @ApiResponse(
+            responseCode = &quot;200&quot;,
+            description = &quot;Timeline entries, oldest first&quot;,
+            content =
+                    @Content(
+                            mediaType = &quot;application/json&quot;,
+                            array = @ArraySchema(schema = @Schema(implementation = TimelineEntryResponse.class))))
+    @ApiResponse(
+            responseCode = &quot;404&quot;,
+            description = &quot;Order not found&quot;,
+            content = @Content(mediaType = PROBLEM, schema = @Schema(ref = ProblemTypes.SCHEMA_REF)))
+    List&lt;TimelineEntryResponse&gt; timeline(@PathVariable UUID id) {
+<span class="fc" id="L221">        return orders.timeline(id).stream()</span>
+<span class="fc" id="L222">                .map(e -&gt; new TimelineEntryResponse(</span>
+<span class="fc" id="L223">                        e.at(),</span>
+<span class="fc" id="L224">                        e.source(),</span>
+<span class="fc" id="L225">                        e.kind(),</span>
+<span class="fc" id="L226">                        json.readTree(e.detailJson()),</span>
+<span class="fc" id="L227">                        e.actor(),</span>
+<span class="fc" id="L228">                        e.correlationId(),</span>
+<span class="fc" id="L229">                        e.providerEventId(),</span>
+<span class="fc" id="L230">                        e.outcome()))</span>
+<span class="fc" id="L231">                .toList();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

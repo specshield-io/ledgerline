@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OutboxStore.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.application</a> &gt; <span class="el_source">OutboxStore.java</span></div><h1>OutboxStore.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.application;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * Port for the outbox relay and its administration.
+ *
+ * &lt;p&gt;The {@code mark*} methods are conditional on the claim: they change the row only if it is still IN_FLIGHT with
+ * the given {@code claimedAt}. A dispatcher whose row was meanwhile returned to PENDING by the watchdog (and possibly
+ * claimed again) therefore cannot overwrite the newer state; they return false in that case.
+ */
+public interface OutboxStore {
+
+    /**
+     * In one transaction: selects up to {@code limit} PENDING rows due at {@code now}, oldest id first, with
+     * {@code FOR UPDATE SKIP LOCKED}, and marks them IN_FLIGHT with {@code claimedAt = now}.
+     */
+    List&lt;OutboxMessage&gt; claimDue(int limit, Instant now);
+
+    boolean markDelivered(long id, Instant claimedAt, Instant deliveredAt);
+
+    /** One more failed attempt; back to PENDING, due at {@code nextAttemptAt}. */
+    boolean markRetry(long id, Instant claimedAt, String error, Instant nextAttemptAt);
+
+    /** One more failed attempt and no retries left. */
+    boolean markDead(long id, Instant claimedAt, String error);
+
+    /** Returns IN_FLIGHT rows claimed before {@code claimedBefore} to PENDING, due at {@code now}. */
+    int releaseStuck(Instant claimedBefore, String reason, Instant now);
+
+    long countByStatus(OutboxStatus status);
+
+    Optional&lt;Instant&gt; oldestPendingCreatedAt();
+
+<span class="fc" id="L37">    record OutboxPage(List&lt;OutboxMessage&gt; items, int page, int size, long totalElements, int totalPages) {}</span>
+
+    /** Newest first. */
+    OutboxPage page(Optional&lt;OutboxStatus&gt; status, int page, int size);
+
+    /** Every row about one order (aggregate), oldest first. */
+    List&lt;OutboxMessage&gt; forAggregate(java.util.UUID aggregateId);
+
+    /** Locks the row for the rest of the caller's transaction. */
+    Optional&lt;OutboxMessage&gt; findByIdForUpdate(long id);
+
+    /** DEAD to PENDING: attempts reset to 0, due at {@code now}, last error cleared. Joins the caller's transaction. */
+    void requeue(long id, Instant now);
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

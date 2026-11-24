@@ -1,0 +1,155 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.application</a> &gt; <span class="el_source">OrderService.java</span></div><h1>OrderService.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.application;
+
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderIds;
+import com.specshield.ledgerline.domain.OrderStateMachine;
+import com.specshield.ledgerline.domain.OrderStatus;
+import com.specshield.ledgerline.domain.OrderStore;
+import java.time.Clock;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import org.slf4j.MDC;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Order use cases. Every state-changing command writes an audit row, and a merchant notification where one applies,
+ * in the same transaction.
+ */
+@Service
+public class OrderService {
+
+    /** MDC key holding the request's correlation id (set by the web layer). */
+    public static final String CORRELATION_ID_MDC_KEY = &quot;correlationId&quot;;
+
+    static final String ACTOR = &quot;api&quot;;
+
+    private final OrderStore orders;
+    private final OrderQueries queries;
+    private final AuditTrail audit;
+    private final PaymentGateway payments;
+    private final MerchantNotifications notifications;
+    private final OutboxStore outbox;
+    private final OrderStateMachine stateMachine;
+    private final OrderIds ids;
+    private final Clock clock;
+    private final JsonMapper json;
+
+    public OrderService(
+            OrderStore orders,
+            OrderQueries queries,
+            AuditTrail audit,
+            PaymentGateway payments,
+            MerchantNotifications notifications,
+            OutboxStore outbox,
+            OrderStateMachine stateMachine,
+            OrderIds ids,
+            Clock clock,
+<span class="fc" id="L54">            JsonMapper json) {</span>
+<span class="fc" id="L55">        this.orders = orders;</span>
+<span class="fc" id="L56">        this.queries = queries;</span>
+<span class="fc" id="L57">        this.audit = audit;</span>
+<span class="fc" id="L58">        this.payments = payments;</span>
+<span class="fc" id="L59">        this.notifications = notifications;</span>
+<span class="fc" id="L60">        this.outbox = outbox;</span>
+<span class="fc" id="L61">        this.stateMachine = stateMachine;</span>
+<span class="fc" id="L62">        this.ids = ids;</span>
+<span class="fc" id="L63">        this.clock = clock;</span>
+<span class="fc" id="L64">        this.json = json;</span>
+<span class="fc" id="L65">    }</span>
+
+<span class="fc" id="L67">    public record PaymentRequested(Order order, String paymentReference) {}</span>
+
+    @Transactional
+    public Order create(String merchantRef, long amountMinor, String currency) {
+<span class="fc" id="L71">        Order order = orders.insert(Order.create(ids.next(), merchantRef, amountMinor, currency, clock.instant()));</span>
+<span class="fc" id="L72">        audit(order, &quot;ORDER_CREATED&quot;, Map.of(&quot;amountMinor&quot;, order.amountMinor(), &quot;currency&quot;, order.currency()));</span>
+<span class="fc" id="L73">        return order;</span>
+    }
+
+    @Transactional(readOnly = true)
+    public Order get(UUID id) {
+<span class="fc" id="L78">        return orders.findById(id).orElseThrow(() -&gt; new OrderNotFoundException(id));</span>
+    }
+
+    @Transactional(readOnly = true)
+    public OrderQueries.OrderPage list(Optional&lt;OrderStatus&gt; status, int page, int size) {
+<span class="fc" id="L83">        return queries.page(status, page, size);</span>
+    }
+
+    @Transactional
+    public PaymentRequested pay(UUID id) {
+<span class="fc" id="L88">        Order order = get(id);</span>
+<span class="fc" id="L89">        stateMachine.requirePayable(order);</span>
+<span class="fc" id="L90">        String reference = payments.startPayment(order);</span>
+<span class="fc" id="L91">        audit(order, &quot;PAYMENT_REQUESTED&quot;, Map.of(&quot;paymentReference&quot;, reference));</span>
+<span class="fc" id="L92">        return new PaymentRequested(order, reference);</span>
+    }
+
+    @Transactional
+    public Order cancel(UUID id) {
+<span class="fc" id="L97">        Order order = get(id);</span>
+<span class="fc" id="L98">        Order cancelled = orders.update(stateMachine.cancel(order));</span>
+<span class="fc" id="L99">        audit(cancelled, &quot;ORDER_CANCELLED&quot;, Map.of(&quot;from&quot;, order.status().name()));</span>
+<span class="fc" id="L100">        notifications.statusChanged(order.status(), cancelled, clock.instant());</span>
+<span class="fc" id="L101">        return cancelled;</span>
+    }
+
+    /** The order's merchant notifications in the outbox, oldest first. */
+    @Transactional(readOnly = true)
+    public List&lt;OutboxMessage&gt; deliveries(UUID id) {
+<span class="fc" id="L107">        get(id);</span>
+<span class="fc" id="L108">        return outbox.forAggregate(id);</span>
+    }
+
+    /** Audit entries and inbox entries for the order, merged by time (oldest first). */
+    @Transactional(readOnly = true)
+    public List&lt;TimelineEntry&gt; timeline(UUID id) {
+<span class="fc" id="L114">        get(id);</span>
+<span class="fc" id="L115">        List&lt;TimelineEntry&gt; entries = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L116" title="All 2 branches covered.">        for (AuditRecord a : audit.forOrder(id)) {</span>
+<span class="fc" id="L117">            entries.add(new TimelineEntry(</span>
+<span class="fc" id="L118">                    a.createdAt(),</span>
+                    TimelineEntry.Source.AUDIT,
+<span class="fc" id="L120">                    a.kind(),</span>
+<span class="fc" id="L121">                    a.detailJson(),</span>
+<span class="fc" id="L122">                    a.actor(),</span>
+<span class="fc" id="L123">                    a.correlationId(),</span>
+                    null,
+                    null));
+<span class="fc" id="L126">        }</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        for (InboxRecord i : queries.inboxForOrder(id)) {</span>
+<span class="fc" id="L128">            entries.add(new TimelineEntry(</span>
+<span class="fc" id="L129">                    i.receivedAt(),</span>
+                    TimelineEntry.Source.INBOX,
+                    &quot;PROVIDER_EVENT&quot;,
+<span class="fc" id="L132">                    i.payloadJson(),</span>
+<span class="fc" id="L133">                    i.provider(),</span>
+                    null,
+<span class="fc" id="L135">                    i.providerEventId(),</span>
+<span class="fc" id="L136">                    i.outcome()));</span>
+<span class="fc" id="L137">        }</span>
+<span class="fc" id="L138">        entries.sort(Comparator.comparing(TimelineEntry::at).thenComparing(TimelineEntry::source));</span>
+<span class="fc" id="L139">        return entries;</span>
+    }
+
+    private void audit(Order order, String kind, Map&lt;String, Object&gt; detail) {
+<span class="fc" id="L143">        Map&lt;String, Object&gt; full = new LinkedHashMap&lt;&gt;(detail);</span>
+<span class="fc" id="L144">        full.put(&quot;status&quot;, order.status().name());</span>
+<span class="fc" id="L145">        audit.append(new AuditRecord(</span>
+                null,
+<span class="fc" id="L147">                order.id(),</span>
+                kind,
+<span class="fc" id="L149">                json.writeValueAsString(full),</span>
+                ACTOR,
+<span class="fc" id="L151">                MDC.get(CORRELATION_ID_MDC_KEY),</span>
+<span class="fc" id="L152">                clock.instant()));</span>
+<span class="fc" id="L153">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

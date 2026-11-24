@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>SecurityConfig.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.config</a> &gt; <span class="el_source">SecurityConfig.java</span></div><h1>SecurityConfig.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.config;
+
+import com.specshield.ledgerline.web.ClientIpResolver;
+import com.specshield.ledgerline.web.ProblemResponses;
+import com.specshield.ledgerline.web.ProblemTypes;
+import com.specshield.ledgerline.web.RateLimitFilter;
+import com.specshield.ledgerline.web.RateLimitProperties;
+import com.specshield.ledgerline.web.RateLimiter;
+import com.specshield.ledgerline.web.RequestLimitsFilter;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.time.Clock;
+import java.util.List;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.core.userdetails.UserDetailsService;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter;
+import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
+import org.springframework.security.web.util.matcher.AnyRequestMatcher;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+import org.springframework.web.filter.CorsFilter;
+
+/**
+ * Deny by default.
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;Public (rate limited): the orders API, {@code /api/v1/meta}, {@code /api/v1/stats}, the chaos API, health and
+ *       info, the OpenAPI document and Swagger UI, and the operations console's static files. The MockPay webhook and the demo merchant are public too; they authenticate requests
+ *       by HMAC signature.
+ *   &lt;li&gt;VIEWER or ADMIN (HTTP Basic): {@code GET /api/v1/admin/**} and {@code /actuator/prometheus}.
+ *   &lt;li&gt;ADMIN: every other {@code /api/v1/admin/**} request (replay, reset).
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Anonymous requests to a protected path get 401 with {@code WWW-Authenticate}; authenticated requests without the
+ * role, and every request to a path outside these lists, get 403. Both are problem+json. Users come from
+ * configuration with BCrypt hashes only (in prod from environment variables).
+ *
+ * &lt;p&gt;CSRF protection stays on except for the API, webhook and demo-merchant paths. Those use no cookies or sessions,
+ * and every state-changing API call needs a custom header ({@code Idempotency-Key}). A browser cannot send that
+ * cross-origin without a CORS preflight, and the preflight succeeds only for the configured origins.
+ */
+@Configuration(proxyBeanMethods = false)
+@EnableConfigurationProperties({SecurityProperties.class, RateLimitProperties.class})
+<span class="fc" id="L59">public class SecurityConfig {</span>
+
+    static final String REALM = &quot;ledgerline&quot;;
+
+    /**
+     * Only this origin may supply scripts, styles, images and API calls; nothing may frame the pages. Inline styles are
+     * allowed (Radix UI and Swagger UI set element styles); inline scripts are not (the console has none).
+     */
+    public static final String CONTENT_SECURITY_POLICY =
+            &quot;default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';&quot;
+                    + &quot; img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';&quot;
+                    + &quot; form-action 'self'; frame-ancestors 'none'&quot;;
+
+    /** No page needs these browser features. */
+    public static final String PERMISSIONS_POLICY = &quot;camera=(), microphone=(), geolocation=(), payment=(), usb=()&quot;;
+
+    @Bean
+    SecurityFilterChain securityFilterChain(
+            HttpSecurity http, ProblemResponses problems, RateLimiter rateLimiter, RateLimitProperties rateLimits)
+            throws Exception {
+<span class="fc" id="L79">        http.authorizeHttpRequests(auth -&gt; auth.requestMatchers(HttpMethod.GET, &quot;/api/v1/admin/**&quot;)</span>
+<span class="fc" id="L80">                        .hasAnyRole(&quot;VIEWER&quot;, &quot;ADMIN&quot;)</span>
+<span class="fc" id="L81">                        .requestMatchers(&quot;/api/v1/admin/**&quot;)</span>
+<span class="fc" id="L82">                        .hasRole(&quot;ADMIN&quot;)</span>
+<span class="fc" id="L83">                        .requestMatchers(&quot;/actuator/prometheus&quot;)</span>
+<span class="fc" id="L84">                        .hasAnyRole(&quot;VIEWER&quot;, &quot;ADMIN&quot;)</span>
+<span class="fc" id="L85">                        .requestMatchers(</span>
+                                &quot;/api/v1/**&quot;,
+                                &quot;/webhooks/mockpay&quot;,
+                                &quot;/demo/merchant-sink&quot;,
+                                &quot;/actuator/health&quot;,
+                                &quot;/actuator/health/**&quot;,
+                                &quot;/actuator/info&quot;,
+                                &quot;/v3/api-docs&quot;,
+                                &quot;/v3/api-docs/**&quot;,
+                                &quot;/swagger-ui.html&quot;,
+                                &quot;/swagger-ui/**&quot;,
+                                &quot;/error&quot;,
+                                // The operations console: its page, its routes and its hashed assets.
+                                &quot;/&quot;,
+                                &quot;/index.html&quot;,
+                                &quot;/outbox&quot;,
+                                &quot;/assets/**&quot;,
+                                &quot;/favicon.svg&quot;)
+<span class="fc" id="L103">                        .permitAll()</span>
+<span class="fc" id="L104">                        .anyRequest()</span>
+<span class="fc" id="L105">                        .denyAll())</span>
+<span class="fc" id="L106">                .sessionManagement(session -&gt; session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))</span>
+<span class="fc" id="L107">                .csrf(csrf -&gt; csrf.ignoringRequestMatchers(&quot;/api/**&quot;, &quot;/webhooks/**&quot;, &quot;/demo/merchant-sink&quot;))</span>
+<span class="fc" id="L108">                .cors(cors -&gt; {})</span>
+<span class="fc" id="L109">                .httpBasic(basic -&gt; basic.realmName(REALM)</span>
+<span class="fc" id="L110">                        .authenticationEntryPoint((request, response, e) -&gt; denied(problems, request, response)))</span>
+<span class="fc" id="L111">                .formLogin(form -&gt; form.disable())</span>
+<span class="fc" id="L112">                .headers(headers -&gt; headers</span>
+                        // Sent on every response, not only over HTTPS: TLS ends at the proxy in front of us.
+<span class="fc" id="L114">                        .httpStrictTransportSecurity(hsts -&gt; hsts.requestMatcher(AnyRequestMatcher.INSTANCE)</span>
+<span class="fc" id="L115">                                .includeSubDomains(true)</span>
+<span class="fc" id="L116">                                .maxAgeInSeconds(31_536_000))</span>
+<span class="fc" id="L117">                        .contentTypeOptions(options -&gt; {})</span>
+<span class="fc" id="L118">                        .frameOptions(frame -&gt; frame.deny())</span>
+<span class="fc" id="L119">                        .contentSecurityPolicy(csp -&gt; csp.policyDirectives(CONTENT_SECURITY_POLICY))</span>
+<span class="fc" id="L120">                        .crossOriginOpenerPolicy(coop -&gt;</span>
+<span class="fc" id="L121">                                coop.policy(CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy.SAME_ORIGIN))</span>
+<span class="fc" id="L122">                        .addHeaderWriter(new StaticHeadersWriter(&quot;Permissions-Policy&quot;, PERMISSIONS_POLICY))</span>
+<span class="fc" id="L123">                        .referrerPolicy(referrer -&gt; referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))</span>
+<span class="fc" id="L124">                .exceptionHandling(</span>
+<span class="fc" id="L125">                        ex -&gt; ex.authenticationEntryPoint((request, response, e) -&gt; denied(problems, request, response))</span>
+<span class="fc" id="L126">                                .accessDeniedHandler((request, response, e) -&gt; forbidden(problems, request, response)));</span>
+<span class="fc bfc" id="L127" title="All 2 branches covered.">        if (rateLimits.enabled()) {</span>
+<span class="fc" id="L128">            http.addFilterAfter(</span>
+<span class="fc" id="L129">                    new RateLimitFilter(rateLimiter, new ClientIpResolver(rateLimits.trustedProxies()), problems),</span>
+                    CorsFilter.class);
+<span class="fc" id="L131">            http.addFilterAfter(new RequestLimitsFilter(problems), RateLimitFilter.class);</span>
+        } else {
+<span class="fc" id="L133">            http.addFilterAfter(new RequestLimitsFilter(problems), CorsFilter.class);</span>
+        }
+<span class="fc" id="L135">        return http.build();</span>
+    }
+
+    @Bean
+    RateLimiter rateLimiter(RateLimitProperties properties, Clock clock) {
+<span class="fc" id="L140">        return new RateLimiter(properties, clock);</span>
+    }
+
+    /** Paths where credentials can help; anonymous requests there get 401 rather than 403. */
+    static boolean authenticatable(HttpServletRequest request) {
+<span class="fc" id="L145">        String path = request.getRequestURI();</span>
+<span class="pc bpc" id="L146" title="1 of 6 branches missed.">        return path.startsWith(&quot;/api/v1/admin/&quot;) || path.equals(&quot;/api/v1/admin&quot;) || path.equals(&quot;/actuator/prometheus&quot;);</span>
+    }
+
+    private static void denied(ProblemResponses problems, HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+<span class="fc bfc" id="L151" title="All 2 branches covered.">        if (!authenticatable(request)) {</span>
+<span class="fc" id="L152">            forbidden(problems, request, response);</span>
+<span class="fc" id="L153">            return;</span>
+        }
+        // A script (the console) marks its requests; a challenge would make the browser open its own login prompt.
+<span class="fc bfc" id="L156" title="All 2 branches covered.">        if (!&quot;XMLHttpRequest&quot;.equals(request.getHeader(&quot;X-Requested-With&quot;))) {</span>
+<span class="fc" id="L157">            response.setHeader(HttpHeaders.WWW_AUTHENTICATE, &quot;Basic realm=\&quot;&quot; + REALM + &quot;\&quot;, charset=\&quot;UTF-8\&quot;&quot;);</span>
+        }
+<span class="fc" id="L159">        problems.write(</span>
+                request,
+                response,
+<span class="fc" id="L162">                ProblemResponses.problem(</span>
+                        HttpStatus.UNAUTHORIZED,
+                        ProblemTypes.UNAUTHORIZED,
+                        &quot;Authentication required&quot;,
+                        &quot;This resource needs HTTP Basic credentials with a suitable role.&quot;,
+                        null));
+<span class="fc" id="L168">    }</span>
+
+    private static void forbidden(ProblemResponses problems, HttpServletRequest request, HttpServletResponse response)
+            throws IOException {
+<span class="fc" id="L172">        problems.write(</span>
+                request,
+                response,
+<span class="fc" id="L175">                ProblemResponses.problem(</span>
+                        HttpStatus.FORBIDDEN,
+                        ProblemTypes.FORBIDDEN,
+                        &quot;Forbidden&quot;,
+                        &quot;This resource is not available.&quot;,
+                        null));
+<span class="fc" id="L181">    }</span>
+
+    @Bean
+    PasswordEncoder passwordEncoder() {
+<span class="fc" id="L185">        return new BCryptPasswordEncoder();</span>
+    }
+
+    /** Users from configuration; with none configured no one can authenticate (and Boot logs no generated password). */
+    @Bean
+    UserDetailsService userDetailsService(SecurityProperties properties) {
+<span class="fc" id="L191">        List&lt;org.springframework.security.core.userdetails.UserDetails&gt; users = properties.users().stream()</span>
+<span class="fc" id="L192">                .filter(SecurityProperties.User::enabled)</span>
+<span class="fc" id="L193">                .map(u -&gt; User.withUsername(u.username())</span>
+<span class="fc" id="L194">                        .password(u.passwordHash())</span>
+<span class="fc" id="L195">                        .roles(u.role().name())</span>
+<span class="fc" id="L196">                        .build())</span>
+<span class="fc" id="L197">                .toList();</span>
+<span class="fc" id="L198">        return new InMemoryUserDetailsManager(users);</span>
+    }
+
+    @Bean
+    CorsConfigurationSource corsConfigurationSource(SecurityProperties properties) {
+<span class="fc" id="L203">        CorsConfiguration api = new CorsConfiguration();</span>
+<span class="fc" id="L204">        api.setAllowedOrigins(properties.corsAllowedOrigins());</span>
+<span class="fc" id="L205">        api.setAllowedMethods(List.of(&quot;GET&quot;, &quot;POST&quot;));</span>
+<span class="fc" id="L206">        api.setAllowedHeaders(</span>
+<span class="fc" id="L207">                List.of(&quot;Content-Type&quot;, &quot;Idempotency-Key&quot;, &quot;X-Request-Id&quot;, &quot;Authorization&quot;, &quot;X-Requested-With&quot;));</span>
+<span class="fc" id="L208">        api.setExposedHeaders(List.of(&quot;X-Request-Id&quot;, &quot;Idempotent-Replayed&quot;, &quot;Retry-After&quot;, &quot;Location&quot;));</span>
+<span class="fc" id="L209">        api.setAllowCredentials(false);</span>
+<span class="fc" id="L210">        api.setMaxAge(3_600L);</span>
+<span class="fc" id="L211">        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();</span>
+<span class="fc" id="L212">        source.registerCorsConfiguration(&quot;/api/**&quot;, api);</span>
+<span class="fc" id="L213">        return source;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

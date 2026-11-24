@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>Order.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.domain</a> &gt; <span class="el_source">Order.java</span></div><h1>Order.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.domain;
+
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.Objects;
+import java.util.UUID;
+
+/**
+ * An order and its payment state. Immutable: every change produces a new instance.
+ *
+ * &lt;p&gt;Invariants, checked on construction:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;{@code merchantRef} is not blank and at most {@value #MERCHANT_REF_MAX_LENGTH} characters;
+ *   &lt;li&gt;{@code amountMinor} is between {@value #MIN_AMOUNT_MINOR} and {@value #MAX_AMOUNT_MINOR};
+ *   &lt;li&gt;{@code currency} is {@code &quot;USD&quot;};
+ *   &lt;li&gt;{@code refundedMinor} matches the status: 0 before any refund, strictly between 0 and the amount when
+ *       {@code PARTIALLY_REFUNDED}, equal to the amount when {@code REFUNDED};
+ *   &lt;li&gt;{@code lastEventSequence} is 0 (no provider event applied yet) or the sequence of the last applied event.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;All instants are UTC and truncated to microseconds, the precision PostgreSQL {@code timestamptz} stores, so
+ * an order read back from the database equals the one that was saved.
+ */
+public record Order(
+        UUID id,
+        String merchantRef,
+        long amountMinor,
+        String currency,
+        OrderStatus status,
+        long refundedMinor,
+        long lastEventSequence,
+        long version,
+        Instant createdAt,
+        Instant updatedAt,
+        Instant lastProviderEventAt) {
+
+    public static final int MERCHANT_REF_MAX_LENGTH = 64;
+    public static final long MIN_AMOUNT_MINOR = 1;
+    public static final long MAX_AMOUNT_MINOR = 100_000_000;
+
+<span class="fc" id="L42">    public Order {</span>
+<span class="fc" id="L43">        Objects.requireNonNull(id, &quot;id&quot;);</span>
+<span class="fc" id="L44">        Objects.requireNonNull(status, &quot;status&quot;);</span>
+<span class="fc" id="L45">        Objects.requireNonNull(createdAt, &quot;createdAt&quot;);</span>
+<span class="fc" id="L46">        Objects.requireNonNull(updatedAt, &quot;updatedAt&quot;);</span>
+<span class="fc" id="L47">        requireValidMerchantRef(merchantRef);</span>
+<span class="fc" id="L48">        requireValidAmount(amountMinor);</span>
+<span class="fc" id="L49">        Money.requireSupportedCurrency(currency);</span>
+<span class="fc" id="L50">        requireRefundedConsistentWithStatus(status, amountMinor, refundedMinor);</span>
+<span class="fc bfc" id="L51" title="All 2 branches covered.">        if (lastEventSequence &lt; 0) {</span>
+<span class="fc" id="L52">            throw new IllegalArgumentException(&quot;lastEventSequence must not be negative, was &quot; + lastEventSequence);</span>
+        }
+<span class="fc bfc" id="L54" title="All 2 branches covered.">        if (version &lt; 0) {</span>
+<span class="fc" id="L55">            throw new IllegalArgumentException(&quot;version must not be negative, was &quot; + version);</span>
+        }
+<span class="fc" id="L57">        createdAt = createdAt.truncatedTo(ChronoUnit.MICROS);</span>
+<span class="fc" id="L58">        updatedAt = updatedAt.truncatedTo(ChronoUnit.MICROS);</span>
+<span class="fc bfc" id="L59" title="All 2 branches covered.">        lastProviderEventAt = lastProviderEventAt == null ? null : lastProviderEventAt.truncatedTo(ChronoUnit.MICROS);</span>
+<span class="fc" id="L60">    }</span>
+
+    /** A new order in {@link OrderStatus#CREATED}. */
+    public static Order create(UUID id, String merchantRef, long amountMinor, String currency, Instant now) {
+<span class="fc" id="L64">        return new Order(id, merchantRef, amountMinor, currency, OrderStatus.CREATED, 0, 0, 0, now, now, null);</span>
+    }
+
+    public Money amount() {
+<span class="fc" id="L68">        return new Money(amountMinor, currency);</span>
+    }
+
+    public Money refunded() {
+<span class="fc" id="L72">        return new Money(refundedMinor, currency);</span>
+    }
+
+    /** Amount that can still be refunded. */
+    public Money refundable() {
+<span class="fc" id="L77">        return amount().minus(refunded());</span>
+    }
+
+    Order withPaymentState(
+            OrderStatus newStatus, long newRefundedMinor, long sequence, Instant providerEventAt, Instant now) {
+<span class="fc" id="L82">        return new Order(</span>
+                id,
+                merchantRef,
+                amountMinor,
+                currency,
+                newStatus,
+                newRefundedMinor,
+                sequence,
+                version,
+                createdAt,
+                now,
+                providerEventAt);
+    }
+
+    Order withStatus(OrderStatus newStatus, Instant now) {
+<span class="fc" id="L97">        return new Order(</span>
+                id,
+                merchantRef,
+                amountMinor,
+                currency,
+                newStatus,
+                refundedMinor,
+                lastEventSequence,
+                version,
+                createdAt,
+                now,
+                lastProviderEventAt);
+    }
+
+    static void requireValidAmount(long amountMinor) {
+<span class="fc bfc" id="L112" title="All 4 branches covered.">        if (amountMinor &lt; MIN_AMOUNT_MINOR || amountMinor &gt; MAX_AMOUNT_MINOR) {</span>
+<span class="fc" id="L113">            throw new IllegalArgumentException(&quot;amountMinor must be between &quot; + MIN_AMOUNT_MINOR + &quot; and &quot;</span>
+                    + MAX_AMOUNT_MINOR + &quot;, was &quot; + amountMinor);
+        }
+<span class="fc" id="L116">    }</span>
+
+    private static void requireValidMerchantRef(String merchantRef) {
+<span class="fc bfc" id="L119" title="All 4 branches covered.">        if (merchantRef == null || merchantRef.isBlank()) {</span>
+<span class="fc" id="L120">            throw new IllegalArgumentException(&quot;merchantRef must not be blank&quot;);</span>
+        }
+<span class="fc bfc" id="L122" title="All 2 branches covered.">        if (merchantRef.length() &gt; MERCHANT_REF_MAX_LENGTH) {</span>
+<span class="fc" id="L123">            throw new IllegalArgumentException(&quot;merchantRef must be at most &quot; + MERCHANT_REF_MAX_LENGTH</span>
+<span class="fc" id="L124">                    + &quot; characters, was &quot; + merchantRef.length());</span>
+        }
+<span class="fc" id="L126">    }</span>
+
+    private static void requireRefundedConsistentWithStatus(OrderStatus status, long amountMinor, long refunded) {
+<span class="fc bfc" id="L129" title="All 3 branches covered.">        boolean consistent = switch (status) {</span>
+<span class="fc bfc" id="L130" title="All 4 branches covered.">            case PARTIALLY_REFUNDED -&gt; refunded &gt; 0 &amp;&amp; refunded &lt; amountMinor;</span>
+<span class="fc bfc" id="L131" title="All 2 branches covered.">            case REFUNDED -&gt; refunded == amountMinor;</span>
+<span class="fc bfc" id="L132" title="All 2 branches covered.">            default -&gt; refunded == 0;</span>
+        };
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        if (!consistent) {</span>
+<span class="fc" id="L135">            throw new IllegalArgumentException(&quot;refundedMinor &quot; + refunded + &quot; is inconsistent with status &quot; + status</span>
+                    + &quot; and amountMinor &quot; + amountMinor);
+        }
+<span class="fc" id="L138">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

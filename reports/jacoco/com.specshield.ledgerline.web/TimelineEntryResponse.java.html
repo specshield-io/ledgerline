@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TimelineEntryResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">TimelineEntryResponse.java</span></div><h1>TimelineEntryResponse.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.application.TimelineEntry;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
+import tools.jackson.databind.JsonNode;
+
+@Schema(name = &quot;TimelineEntry&quot;, description = &quot;An audit log entry or a provider event, ordered by time&quot;)
+<span class="fc" id="L9">public record TimelineEntryResponse(</span>
+        Instant at,
+
+        @Schema(description = &quot;AUDIT (our own commands) or INBOX (provider events)&quot;)
+        TimelineEntry.Source source,
+
+        @Schema(description = &quot;Audit kind, e.g. ORDER_CREATED, or PROVIDER_EVENT&quot;, example = &quot;ORDER_CREATED&quot;)
+        String kind,
+
+        @Schema(description = &quot;Audit detail or provider payload&quot;, implementation = Object.class, types = &quot;object&quot;)
+        JsonNode detail,
+
+        @Schema(description = &quot;Who acted: 'api' or the provider name&quot;)
+        String actor,
+
+        @Schema(nullable = true) String correlationId,
+        @Schema(nullable = true) String providerEventId,
+
+        @Schema(nullable = true, description = &quot;Inbox processing outcome&quot;)
+        String outcome) {}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>PaymentInbox.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.application</a> &gt; <span class="el_source">PaymentInbox.java</span></div><h1>PaymentInbox.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.application;
+
+import java.time.Instant;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+
+/** Port for order_events_inbox. Joins the caller's transaction. */
+public interface PaymentInbox {
+
+    /**
+     * INSERT ... ON CONFLICT (provider, provider_event_id) DO NOTHING. Returns the new row id, or empty if the event
+     * is already stored (a duplicate). Under concurrency the unique index serialises inserts: a second transaction
+     * waits for the first and then sees the conflict.
+     */
+    Optional&lt;Long&gt; insertIfAbsent(
+            String provider, String providerEventId, UUID orderId, String payloadJson, Instant receivedAt);
+
+    /** Stores a rejected delivery (signature failed) as already processed with outcome REJECTED. */
+    void insertRejected(String provider, String syntheticEventId, String detailJson, Instant receivedAt);
+
+    /** Signature-valid rows of the order whose outcome is not decided yet, oldest first. */
+    List&lt;PendingEvent&gt; pendingForOrder(UUID orderId);
+
+    void markProcessed(long id, String outcome, Instant processedAt);
+
+    /** Distinct order ids of ORPHAN rows received at or after {@code since}. */
+    List&lt;UUID&gt; orphanOrderIds(Instant since);
+
+    /** Turns the order's ORPHAN rows received at or after {@code since} back into pending rows. */
+    int reopenOrphans(UUID orderId, Instant since);
+
+<span class="fc" id="L33">    record PendingEvent(long id, String providerEventId, String payloadJson) {}</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

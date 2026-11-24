@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OtlpEnvironment.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.config</a> &gt; <span class="el_source">OtlpEnvironment.java</span></div><h1>OtlpEnvironment.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.config;
+
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import org.springframework.boot.EnvironmentPostProcessor;
+import org.springframework.boot.SpringApplication;
+import org.springframework.core.env.ConfigurableEnvironment;
+import org.springframework.core.env.MapPropertySource;
+import org.springframework.core.env.StandardEnvironment;
+
+/**
+ * Maps the standard OpenTelemetry variables onto Spring Boot's properties, so the usual setup works:
+ *
+ * &lt;pre&gt;
+ * OTEL_EXPORTER_OTLP_ENDPOINT=https://otlp-gateway-prod-eu-west-2.grafana.net/otlp
+ * OTEL_EXPORTER_OTLP_HEADERS=Authorization=Basic%20...
+ * &lt;/pre&gt;
+ *
+ * &lt;p&gt;With an endpoint, spans go to {@code &lt;endpoint&gt;/v1/traces} and metrics to {@code &lt;endpoint&gt;/v1/metrics} (OTLP over
+ * HTTP). Without one nothing is exported: Boot creates no span exporter without an endpoint, and OTLP metric export
+ * stays off ({@code management.otlp.metrics.export.enabled=false} in application.yml). Properties set explicitly (in
+ * the environment or on the command line) still win: this source sits just below the system environment.
+ */
+<span class="fc" id="L26">public class OtlpEnvironment implements EnvironmentPostProcessor {</span>
+
+    static final String ENDPOINT = &quot;OTEL_EXPORTER_OTLP_ENDPOINT&quot;;
+    static final String HEADERS = &quot;OTEL_EXPORTER_OTLP_HEADERS&quot;;
+    static final String SOURCE_NAME = &quot;otelExporterEnvironment&quot;;
+
+    @Override
+    public void postProcessEnvironment(ConfigurableEnvironment environment, SpringApplication application) {
+<span class="fc" id="L34">        Map&lt;String, Object&gt; properties =</span>
+<span class="fc" id="L35">                properties(environment.getProperty(ENDPOINT), environment.getProperty(HEADERS));</span>
+<span class="fc bfc" id="L36" title="All 2 branches covered.">        if (properties.isEmpty()) {</span>
+<span class="fc" id="L37">            return;</span>
+        }
+<span class="fc" id="L39">        MapPropertySource source = new MapPropertySource(SOURCE_NAME, properties);</span>
+<span class="pc bpc" id="L40" title="1 of 2 branches missed.">        if (environment.getPropertySources().contains(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME)) {</span>
+<span class="fc" id="L41">            environment</span>
+<span class="fc" id="L42">                    .getPropertySources()</span>
+<span class="fc" id="L43">                    .addAfter(StandardEnvironment.SYSTEM_ENVIRONMENT_PROPERTY_SOURCE_NAME, source);</span>
+        } else {
+<span class="nc" id="L45">            environment.getPropertySources().addFirst(source);</span>
+        }
+<span class="fc" id="L47">    }</span>
+
+    /** The Boot properties for an OTLP base endpoint and optional {@code key=value,key=value} headers. */
+    static Map&lt;String, Object&gt; properties(String endpoint, String headers) {
+<span class="fc" id="L51">        Map&lt;String, Object&gt; properties = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc bfc" id="L52" title="All 4 branches covered.">        if (endpoint == null || endpoint.isBlank()) {</span>
+<span class="fc" id="L53">            return properties;</span>
+        }
+<span class="fc" id="L55">        String base = endpoint.strip().replaceAll(&quot;/+$&quot;, &quot;&quot;);</span>
+<span class="fc" id="L56">        properties.put(&quot;management.opentelemetry.tracing.export.otlp.endpoint&quot;, base + &quot;/v1/traces&quot;);</span>
+<span class="fc" id="L57">        properties.put(&quot;management.otlp.metrics.export.enabled&quot;, &quot;true&quot;);</span>
+<span class="fc" id="L58">        properties.put(&quot;management.otlp.metrics.export.url&quot;, base + &quot;/v1/metrics&quot;);</span>
+<span class="pc bpc" id="L59" title="1 of 4 branches missed.">        if (headers != null &amp;&amp; !headers.isBlank()) {</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">            for (String pair : headers.split(&quot;,&quot;)) {</span>
+<span class="fc" id="L61">                int eq = pair.indexOf('=');</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">                if (eq &lt;= 0) {</span>
+<span class="fc" id="L63">                    continue;</span>
+                }
+<span class="fc" id="L65">                String key = pair.substring(0, eq).strip();</span>
+<span class="fc" id="L66">                String value = URLDecoder.decode(pair.substring(eq + 1).strip(), StandardCharsets.UTF_8);</span>
+<span class="fc" id="L67">                properties.put(&quot;management.opentelemetry.tracing.export.otlp.headers[&quot; + key + &quot;]&quot;, value);</span>
+<span class="fc" id="L68">                properties.put(&quot;management.otlp.metrics.export.headers[&quot; + key + &quot;]&quot;, value);</span>
+            }
+        }
+<span class="fc" id="L71">        return properties;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

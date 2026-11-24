@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ProblemTypes.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">ProblemTypes.java</span></div><h1>ProblemTypes.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import java.net.URI;
+
+/**
+ * Stable RFC 9457 problem type identifiers. They are URNs on purpose: they identify an error kind without pointing
+ * at a web page that does not exist. Clients should branch on {@code type}, never on {@code title} or
+ * {@code detail}.
+ */
+public final class ProblemTypes {
+
+    public static final String PREFIX = &quot;urn:ledgerline:problem:&quot;;
+
+    /** OpenAPI component describing these problems (registered by config.OpenApiConfig). */
+    public static final String SCHEMA_NAME = &quot;Problem&quot;;
+
+    public static final String SCHEMA_REF = &quot;#/components/schemas/&quot; + SCHEMA_NAME;
+
+<span class="fc" id="L19">    public static final URI VALIDATION = of(&quot;validation-error&quot;);</span>
+<span class="fc" id="L20">    public static final URI MISSING_HEADER = of(&quot;missing-request-header&quot;);</span>
+<span class="fc" id="L21">    public static final URI INVALID_IDEMPOTENCY_KEY = of(&quot;invalid-idempotency-key&quot;);</span>
+<span class="fc" id="L22">    public static final URI MALFORMED_REQUEST = of(&quot;malformed-request&quot;);</span>
+<span class="fc" id="L23">    public static final URI INVALID_PARAMETER = of(&quot;invalid-parameter&quot;);</span>
+<span class="fc" id="L24">    public static final URI PAYLOAD_TOO_LARGE = of(&quot;payload-too-large&quot;);</span>
+<span class="fc" id="L25">    public static final URI FORBIDDEN = of(&quot;forbidden&quot;);</span>
+<span class="fc" id="L26">    public static final URI UNAUTHORIZED = of(&quot;unauthorized&quot;);</span>
+<span class="fc" id="L27">    public static final URI RATE_LIMITED = of(&quot;rate-limited&quot;);</span>
+<span class="fc" id="L28">    public static final URI NOT_FOUND = of(&quot;not-found&quot;);</span>
+<span class="fc" id="L29">    public static final URI ORDER_NOT_FOUND = of(&quot;order-not-found&quot;);</span>
+<span class="fc" id="L30">    public static final URI METHOD_NOT_ALLOWED = of(&quot;method-not-allowed&quot;);</span>
+<span class="fc" id="L31">    public static final URI NOT_ACCEPTABLE = of(&quot;not-acceptable&quot;);</span>
+<span class="fc" id="L32">    public static final URI UNSUPPORTED_MEDIA_TYPE = of(&quot;unsupported-media-type&quot;);</span>
+<span class="fc" id="L33">    public static final URI ILLEGAL_TRANSITION = of(&quot;illegal-transition&quot;);</span>
+<span class="fc" id="L34">    public static final URI CONCURRENT_MODIFICATION = of(&quot;concurrent-modification&quot;);</span>
+<span class="fc" id="L35">    public static final URI IDEMPOTENCY_IN_PROGRESS = of(&quot;idempotency-request-in-progress&quot;);</span>
+<span class="fc" id="L36">    public static final URI IDEMPOTENCY_KEY_REUSE = of(&quot;idempotency-key-reuse&quot;);</span>
+<span class="fc" id="L37">    public static final URI INVALID_SIGNATURE = of(&quot;invalid-signature&quot;);</span>
+<span class="fc" id="L38">    public static final URI MALFORMED_EVENT = of(&quot;malformed-event&quot;);</span>
+<span class="fc" id="L39">    public static final URI OUTBOX_MESSAGE_NOT_FOUND = of(&quot;outbox-message-not-found&quot;);</span>
+<span class="fc" id="L40">    public static final URI OUTBOX_MESSAGE_NOT_REPLAYABLE = of(&quot;outbox-message-not-replayable&quot;);</span>
+<span class="fc" id="L41">    public static final URI SCENARIO_NOT_FOUND = of(&quot;scenario-not-found&quot;);</span>
+<span class="fc" id="L42">    public static final URI SCENARIO_RUN_NOT_FOUND = of(&quot;scenario-run-not-found&quot;);</span>
+<span class="fc" id="L43">    public static final URI TOO_MANY_SCENARIO_RUNS = of(&quot;too-many-scenario-runs&quot;);</span>
+<span class="fc" id="L44">    public static final URI CHAOS_UNAVAILABLE = of(&quot;chaos-unavailable&quot;);</span>
+<span class="fc" id="L45">    public static final URI RESET_IN_PROGRESS = of(&quot;reset-in-progress&quot;);</span>
+<span class="fc" id="L46">    public static final URI INTERNAL_ERROR = of(&quot;internal-error&quot;);</span>
+
+    private ProblemTypes() {}
+
+    static URI of(String slug) {
+<span class="fc" id="L51">        return URI.create(PREFIX + slug);</span>
+    }
+
+    /** The default type for a status when no specific kind applies. */
+    static URI forStatus(int status) {
+<span class="pc bpc" id="L56" title="8 of 10 branches missed.">        return switch (status) {</span>
+<span class="fc" id="L57">            case 400 -&gt; MALFORMED_REQUEST;</span>
+<span class="nc" id="L58">            case 401 -&gt; UNAUTHORIZED;</span>
+<span class="nc" id="L59">            case 403 -&gt; FORBIDDEN;</span>
+<span class="nc" id="L60">            case 404 -&gt; NOT_FOUND;</span>
+<span class="nc" id="L61">            case 405 -&gt; METHOD_NOT_ALLOWED;</span>
+<span class="nc" id="L62">            case 406 -&gt; NOT_ACCEPTABLE;</span>
+<span class="nc" id="L63">            case 413 -&gt; PAYLOAD_TOO_LARGE;</span>
+<span class="nc" id="L64">            case 415 -&gt; UNSUPPORTED_MEDIA_TYPE;</span>
+<span class="nc" id="L65">            case 429 -&gt; RATE_LIMITED;</span>
+<span class="pc bpc" id="L66" title="1 of 2 branches missed.">            default -&gt; status &gt;= 500 ? INTERNAL_ERROR : of(&quot;http-&quot; + status);</span>
+        };
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

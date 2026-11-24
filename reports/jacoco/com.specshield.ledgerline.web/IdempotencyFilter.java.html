@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>IdempotencyFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">IdempotencyFilter.java</span></div><h1>IdempotencyFilter.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.application.IdempotencyService;
+import com.specshield.ledgerline.application.IdempotencyService.Decision;
+import com.specshield.ledgerline.application.StoredResponse;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Component;
+import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingResponseWrapper;
+
+/**
+ * Applies {@link IdempotencyService} to every {@code POST /api/v1/**} carrying an {@code Idempotency-Key}. Runs
+ * after Spring Security (order -100) and around Spring MVC, so it sees the exact request and response bytes.
+ *
+ * &lt;p&gt;A POST without the header passes through; the controller then rejects it with 400 missing-request-header.
+ */
+@Component
+@Order(0)
+public class IdempotencyFilter extends OncePerRequestFilter {
+
+    public static final String HEADER = &quot;Idempotency-Key&quot;;
+    public static final String REPLAYED_HEADER = &quot;Idempotent-Replayed&quot;;
+    static final int MAX_BODY_BYTES = 64 * 1024;
+
+<span class="fc" id="L41">    private static final Logger log = LoggerFactory.getLogger(IdempotencyFilter.class);</span>
+
+    private final IdempotencyService idempotency;
+    private final ProblemResponses problems;
+
+<span class="fc" id="L46">    public IdempotencyFilter(IdempotencyService idempotency, ProblemResponses problems) {</span>
+<span class="fc" id="L47">        this.idempotency = idempotency;</span>
+<span class="fc" id="L48">        this.problems = problems;</span>
+<span class="fc" id="L49">    }</span>
+
+    @Override
+    protected boolean shouldNotFilter(HttpServletRequest request) {
+<span class="fc bfc" id="L53" title="All 2 branches covered.">        return !&quot;POST&quot;.equals(request.getMethod())</span>
+<span class="fc bfc" id="L54" title="All 2 branches covered.">                || !request.getRequestURI().startsWith(&quot;/api/v1/&quot;)</span>
+<span class="fc bfc" id="L55" title="All 2 branches covered.">                || request.getHeader(HEADER) == null;</span>
+    }
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+<span class="fc" id="L61">        String key = request.getHeader(HEADER);</span>
+<span class="fc bfc" id="L62" title="All 2 branches covered.">        if (!IdempotencyService.isValidKey(key)) {</span>
+<span class="fc" id="L63">            problems.write(</span>
+                    request,
+                    response,
+<span class="fc" id="L66">                    ProblemResponses.problem(</span>
+                            HttpStatus.BAD_REQUEST,
+                            ProblemTypes.INVALID_IDEMPOTENCY_KEY,
+                            &quot;Invalid Idempotency-Key&quot;,
+                            &quot;Header 'Idempotency-Key' must be 8 to 128 characters from [A-Za-z0-9_-].&quot;,
+                            null));
+<span class="fc" id="L72">            return;</span>
+        }
+<span class="fc" id="L74">        byte[] body = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);</span>
+<span class="pc bpc" id="L75" title="1 of 2 branches missed.">        if (body.length &gt; MAX_BODY_BYTES) {</span>
+<span class="nc" id="L76">            problems.write(</span>
+                    request,
+                    response,
+<span class="nc" id="L79">                    ProblemResponses.problem(</span>
+                            HttpStatus.CONTENT_TOO_LARGE,
+                            ProblemTypes.PAYLOAD_TOO_LARGE,
+                            &quot;Payload too large&quot;,
+                            &quot;Request bodies are limited to &quot; + MAX_BODY_BYTES + &quot; bytes.&quot;,
+                            null));
+<span class="nc" id="L85">            return;</span>
+        }
+<span class="fc" id="L87">        String hash = idempotency.requestHash(request.getMethod(), request.getRequestURI(), body);</span>
+
+<span class="fc bfc" id="L89" title="All 4 branches covered.">        switch (idempotency.begin(key, hash)) {</span>
+<span class="fc" id="L90">            case Decision.Proceed() -&gt; execute(key, new CachedBodyRequest(request, body), response, chain);</span>
+<span class="fc" id="L91">            case Decision.Replay(StoredResponse stored) -&gt; replay(response, stored);</span>
+<span class="fc" id="L92">            case Decision.KeyReused() -&gt;</span>
+<span class="fc" id="L93">                problems.write(</span>
+                        request,
+                        response,
+<span class="fc" id="L96">                        ProblemResponses.problem(</span>
+                                HttpStatus.UNPROCESSABLE_CONTENT,
+                                ProblemTypes.IDEMPOTENCY_KEY_REUSE,
+                                &quot;Idempotency key reused&quot;,
+                                &quot;This Idempotency-Key was already used for a different request (method, path or body).&quot;,
+                                null));
+<span class="fc" id="L102">            case Decision.InProgress() -&gt; {</span>
+<span class="fc" id="L103">                response.setHeader(HttpHeaders.RETRY_AFTER, &quot;1&quot;);</span>
+<span class="fc" id="L104">                problems.write(</span>
+                        request,
+                        response,
+<span class="fc" id="L107">                        ProblemResponses.problem(</span>
+                                HttpStatus.CONFLICT,
+                                ProblemTypes.IDEMPOTENCY_IN_PROGRESS,
+                                &quot;Request in progress&quot;,
+                                &quot;A request with this Idempotency-Key is still being processed. Retry shortly.&quot;,
+                                null));
+<span class="fc" id="L113">            }</span>
+        }
+<span class="fc" id="L115">    }</span>
+
+    private void execute(String key, HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws IOException, ServletException {
+<span class="fc" id="L119">        ContentCachingResponseWrapper wrapper = new ContentCachingResponseWrapper(response);</span>
+        try {
+<span class="fc" id="L121">            chain.doFilter(request, wrapper);</span>
+<span class="nc" id="L122">        } catch (IOException | ServletException | RuntimeException e) {</span>
+<span class="nc" id="L123">            idempotency.abandon(key);</span>
+<span class="nc" id="L124">            throw e;</span>
+<span class="fc" id="L125">        }</span>
+<span class="fc" id="L126">        int status = wrapper.getStatus();</span>
+        try {
+<span class="fc bfc" id="L128" title="All 4 branches covered.">            if (status &gt;= 500 || status == 429) {</span>
+                // Server errors and &quot;too many requests&quot; are not stored: the client may retry with the same key.
+<span class="fc" id="L130">                idempotency.abandon(key);</span>
+            } else {
+<span class="fc" id="L132">                idempotency.complete(</span>
+                        key,
+                        new StoredResponse(
+                                status,
+<span class="fc" id="L136">                                wrapper.getContentAsByteArray(),</span>
+<span class="fc" id="L137">                                wrapper.getContentType(),</span>
+<span class="fc" id="L138">                                wrapper.getHeader(HttpHeaders.LOCATION)));</span>
+            }
+<span class="nc" id="L140">        } catch (RuntimeException e) {</span>
+<span class="nc" id="L141">            log.error(&quot;could not record idempotent response; releasing the key&quot;, e);</span>
+<span class="nc" id="L142">            idempotency.abandon(key);</span>
+<span class="fc" id="L143">        }</span>
+<span class="fc" id="L144">        wrapper.copyBodyToResponse();</span>
+<span class="fc" id="L145">    }</span>
+
+    private static void replay(HttpServletResponse response, StoredResponse stored) throws IOException {
+<span class="fc" id="L148">        response.setStatus(stored.status());</span>
+<span class="fc" id="L149">        response.setHeader(REPLAYED_HEADER, &quot;true&quot;);</span>
+<span class="pc bpc" id="L150" title="1 of 2 branches missed.">        if (stored.contentType() != null) {</span>
+<span class="fc" id="L151">            response.setContentType(stored.contentType());</span>
+        }
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (stored.location() != null) {</span>
+<span class="fc" id="L154">            response.setHeader(HttpHeaders.LOCATION, stored.location());</span>
+        }
+<span class="fc" id="L156">        byte[] body = stored.body();</span>
+<span class="fc" id="L157">        response.setContentLength(body.length);</span>
+<span class="fc" id="L158">        response.getOutputStream().write(body);</span>
+<span class="fc" id="L159">    }</span>
+
+    /** Lets the rest of the chain read a body this filter has already consumed. */
+    static final class CachedBodyRequest extends HttpServletRequestWrapper {
+        private final byte[] body;
+
+        CachedBodyRequest(HttpServletRequest request, byte[] body) {
+<span class="fc" id="L166">            super(request);</span>
+<span class="fc" id="L167">            this.body = body;</span>
+<span class="fc" id="L168">        }</span>
+
+        @Override
+        public ServletInputStream getInputStream() {
+<span class="fc" id="L172">            ByteArrayInputStream in = new ByteArrayInputStream(body);</span>
+<span class="fc" id="L173">            return new ServletInputStream() {</span>
+                @Override
+                public int read() {
+<span class="fc" id="L176">                    return in.read();</span>
+                }
+
+                @Override
+                public int read(byte[] b, int off, int len) {
+<span class="fc" id="L181">                    return in.read(b, off, len);</span>
+                }
+
+                @Override
+                public boolean isFinished() {
+<span class="nc bnc" id="L186" title="All 2 branches missed.">                    return in.available() == 0;</span>
+                }
+
+                @Override
+                public boolean isReady() {
+<span class="nc" id="L191">                    return true;</span>
+                }
+
+                @Override
+                public void setReadListener(ReadListener listener) {
+<span class="nc" id="L196">                    throw new UnsupportedOperationException(&quot;async reads are not supported&quot;);</span>
+                }
+            };
+        }
+
+        @Override
+        public BufferedReader getReader() {
+<span class="nc" id="L203">            return new BufferedReader(new InputStreamReader(getInputStream(), StandardCharsets.UTF_8));</span>
+        }
+
+        @Override
+        public int getContentLength() {
+<span class="fc" id="L208">            return body.length;</span>
+        }
+
+        @Override
+        public long getContentLengthLong() {
+<span class="nc" id="L213">            return body.length;</span>
+        }
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

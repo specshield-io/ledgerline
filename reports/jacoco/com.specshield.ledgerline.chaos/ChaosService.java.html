@@ -1,0 +1,371 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ChaosService.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.chaos</a> &gt; <span class="el_source">ChaosService.java</span></div><h1>ChaosService.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.chaos;
+
+import com.github.benmanes.caffeine.cache.Cache;
+import com.github.benmanes.caffeine.cache.Caffeine;
+import com.specshield.ledgerline.application.AuditRecord;
+import com.specshield.ledgerline.application.AuditTrail;
+import com.specshield.ledgerline.application.OrderService;
+import com.specshield.ledgerline.domain.Money;
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderStatus;
+import com.specshield.ledgerline.mockpay.MockPayScripts;
+import com.specshield.ledgerline.mockpay.MockPayScripts.Payment;
+import com.specshield.ledgerline.mockpay.MockPayScripts.Tamper;
+import com.specshield.ledgerline.webhook.MerchantSink;
+import jakarta.annotation.PreDestroy;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.Semaphore;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.stereotype.Service;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Starts and runs chaos scenarios.
+ *
+ * &lt;p&gt;{@link #start} takes one of {@code maxConcurrentRuns} slots (or fails with {@link ChaosExceptions.CapacityExceeded}),
+ * creates a fresh synthetic order and returns at once; the steps run on a virtual thread, which frees the slot when it
+ * ends. Every step is written to the order's audit log ({@code CHAOS_STEP}, actor {@code chaos:&lt;scenario&gt;}), so the
+ * order timeline shows the run as it happens, next to the provider events and their outcomes.
+ */
+@Service
+public class ChaosService {
+
+    static final long ORDER_AMOUNT_MINOR = 4_999;
+    static final long PARTIAL_REFUND_MINOR = 1_500;
+    static final int DUPLICATE_DELIVERIES = 5;
+
+<span class="fc" id="L51">    private static final Logger log = LoggerFactory.getLogger(ChaosService.class);</span>
+
+    private final OrderService orders;
+    private final ObjectProvider&lt;MockPayScripts&gt; mockPay;
+    private final ObjectProvider&lt;MerchantSink&gt; merchant;
+    private final AuditTrail audit;
+    private final ScenarioHook hook;
+    private final ChaosProperties properties;
+    private final Clock clock;
+    private final JsonMapper json;
+    private final Semaphore slots;
+<span class="fc" id="L62">    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();</span>
+<span class="fc" id="L63">    private final Cache&lt;String, ScenarioRun&gt; runs = Caffeine.newBuilder()</span>
+<span class="fc" id="L64">            .maximumSize(1_000)</span>
+<span class="fc" id="L65">            .expireAfterWrite(Duration.ofHours(1))</span>
+<span class="fc" id="L66">            .build();</span>
+
+    public ChaosService(
+            OrderService orders,
+            ObjectProvider&lt;MockPayScripts&gt; mockPay,
+            ObjectProvider&lt;MerchantSink&gt; merchant,
+            AuditTrail audit,
+            ScenarioHook hook,
+            ChaosProperties properties,
+            Clock clock,
+<span class="fc" id="L76">            JsonMapper json) {</span>
+<span class="fc" id="L77">        this.orders = orders;</span>
+<span class="fc" id="L78">        this.mockPay = mockPay;</span>
+<span class="fc" id="L79">        this.merchant = merchant;</span>
+<span class="fc" id="L80">        this.audit = audit;</span>
+<span class="fc" id="L81">        this.hook = hook;</span>
+<span class="fc" id="L82">        this.properties = properties;</span>
+<span class="fc" id="L83">        this.clock = clock;</span>
+<span class="fc" id="L84">        this.json = json;</span>
+<span class="fc" id="L85">        this.slots = new Semaphore(properties.maxConcurrentRuns());</span>
+<span class="fc" id="L86">    }</span>
+
+    public ScenarioRun start(Scenario scenario) {
+<span class="fc" id="L89">        MockPayScripts provider = mockPay.getIfAvailable();</span>
+<span class="fc bfc" id="L90" title="All 2 branches covered.">        if (provider == null) {</span>
+<span class="fc" id="L91">            throw new ChaosExceptions.Unavailable(</span>
+                    &quot;Chaos scenarios need MockPay, which is disabled in this deployment.&quot;);
+        }
+<span class="fc" id="L94">        MerchantSink sink = merchant.getIfAvailable();</span>
+<span class="pc bpc" id="L95" title="1 of 4 branches missed.">        if (scenario.needsMerchantSink() &amp;&amp; sink == null) {</span>
+<span class="nc" id="L96">            throw new ChaosExceptions.Unavailable(</span>
+                    &quot;This scenario needs the demo merchant, which is disabled in this deployment.&quot;);
+        }
+<span class="fc bfc" id="L99" title="All 2 branches covered.">        if (!slots.tryAcquire()) {</span>
+<span class="fc" id="L100">            throw new ChaosExceptions.CapacityExceeded(properties.maxConcurrentRuns());</span>
+        }
+        try {
+<span class="fc" id="L103">            String runId = UUID.randomUUID().toString();</span>
+<span class="fc" id="L104">            String correlationId = MDC.get(OrderService.CORRELATION_ID_MDC_KEY);</span>
+<span class="fc" id="L105">            Order order = orders.create(</span>
+<span class="fc" id="L106">                    &quot;chaos-&quot; + scenario.slug() + &quot;-&quot; + runId.substring(0, 8), ORDER_AMOUNT_MINOR, Money.USD);</span>
+<span class="fc" id="L107">            ScenarioRun run = new ScenarioRun(runId, scenario, order.id(), clock.instant(), correlationId);</span>
+<span class="fc" id="L108">            runs.put(runId, run);</span>
+<span class="fc" id="L109">            step(run, &quot;scenario started: &quot; + scenario.description(), null);</span>
+<span class="fc" id="L110">            executor.submit(() -&gt; execute(run, provider, sink));</span>
+<span class="fc" id="L111">            return run;</span>
+<span class="nc" id="L112">        } catch (RuntimeException e) {</span>
+<span class="nc" id="L113">            slots.release();</span>
+<span class="nc" id="L114">            throw e;</span>
+        }
+    }
+
+    public Optional&lt;ScenarioRun&gt; find(String runId) {
+<span class="fc" id="L119">        return Optional.ofNullable(runs.getIfPresent(runId));</span>
+    }
+
+    /** Slots currently free (for tests and metrics). */
+    public int availableSlots() {
+<span class="fc" id="L124">        return slots.availablePermits();</span>
+    }
+
+    private void execute(ScenarioRun run, MockPayScripts provider, MerchantSink sink) {
+<span class="pc bpc" id="L128" title="1 of 2 branches missed.">        if (run.correlationId() != null) {</span>
+<span class="fc" id="L129">            MDC.put(OrderService.CORRELATION_ID_MDC_KEY, run.correlationId());</span>
+        }
+<span class="fc" id="L131">        MDC.put(&quot;orderId&quot;, run.orderId().toString());</span>
+        try {
+<span class="fc" id="L133">            hook.beforeSteps(run);</span>
+<span class="fc" id="L134">            steps(run, provider, sink);</span>
+<span class="fc" id="L135">            OrderStatus end = orders.get(run.orderId()).status();</span>
+<span class="fc" id="L136">            step(run, &quot;scenario finished; order is &quot; + end, null);</span>
+<span class="fc" id="L137">            run.complete(clock.instant(), end.name());</span>
+<span class="nc" id="L138">        } catch (InterruptedException e) {</span>
+<span class="nc" id="L139">            Thread.currentThread().interrupt();</span>
+<span class="nc" id="L140">            run.fail(clock.instant(), &quot;interrupted&quot;);</span>
+<span class="nc" id="L141">        } catch (RuntimeException | ExecutionException e) {</span>
+<span class="nc" id="L142">            log.warn(&quot;chaos run {} ({}) failed: {}&quot;, run.id(), run.scenario().slug(), e.toString());</span>
+<span class="nc" id="L143">            safeStep(run, &quot;scenario failed: &quot; + e.getClass().getSimpleName());</span>
+<span class="nc" id="L144">            run.fail(clock.instant(), e.getClass().getSimpleName());</span>
+        } finally {
+<span class="fc" id="L146">            slots.release();</span>
+<span class="fc" id="L147">            MDC.remove(OrderService.CORRELATION_ID_MDC_KEY);</span>
+<span class="fc" id="L148">            MDC.remove(&quot;orderId&quot;);</span>
+        }
+<span class="fc" id="L150">    }</span>
+
+    private void steps(ScenarioRun run, MockPayScripts provider, MerchantSink sink)
+            throws InterruptedException, ExecutionException {
+<span class="fc" id="L154">        Order order = orders.get(run.orderId());</span>
+<span class="pc bpc" id="L155" title="1 of 9 branches missed.">        switch (run.scenario()) {</span>
+            case HAPPY_PATH -&gt; {
+<span class="fc" id="L157">                OrderService.PaymentRequested requested = orders.pay(order.id());</span>
+<span class="fc" id="L158">                step(run, &quot;payment requested; MockPay will report it (&quot; + requested.paymentReference() + &quot;)&quot;, null);</span>
+<span class="fc" id="L159">                awaitStatus(run, OrderStatus.PAID);</span>
+<span class="fc" id="L160">            }</span>
+            case DUPLICATE_STORM -&gt; {
+<span class="fc" id="L162">                Payment payment = initiate(run, provider, order);</span>
+<span class="fc" id="L163">                provider.settle(payment, true);</span>
+<span class="fc" id="L164">                String eventId = provider.newEventId();</span>
+<span class="fc" id="L165">                List&lt;Future&lt;MockPayScripts.Delivery&gt;&gt; storm = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L166" title="All 2 branches covered.">                for (int i = 0; i &lt; DUPLICATE_DELIVERIES; i++) {</span>
+<span class="fc" id="L167">                    storm.add(executor.submit(() -&gt; provider.send(</span>
+                            payment,
+                            eventId,
+                            &quot;PAYMENT_SUCCEEDED&quot;,
+                            2,
+<span class="fc" id="L172">                            order.amountMinor(),</span>
+                            Tamper.NONE,
+<span class="fc" id="L174">                            run.correlationId())));</span>
+                }
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                for (Future&lt;MockPayScripts.Delivery&gt; delivery : storm) {</span>
+<span class="fc" id="L177">                    step(</span>
+                            run,
+                            &quot;PAYMENT_SUCCEEDED &quot; + eventId + &quot; delivered (one of 5 at once)&quot;,
+<span class="fc" id="L180">                            delivery.get().status());</span>
+<span class="fc" id="L181">                }</span>
+<span class="fc" id="L182">            }</span>
+            case TAMPERED_WEBHOOK -&gt; {
+<span class="fc" id="L184">                Payment payment = initiate(run, provider, order);</span>
+<span class="fc" id="L185">                send(</span>
+                        run,
+                        provider,
+                        payment,
+                        &quot;PAYMENT_SUCCEEDED&quot;,
+                        2,
+<span class="fc" id="L191">                        order.amountMinor(),</span>
+                        Tamper.BODY_ALTERED_AFTER_SIGNING,
+                        &quot;PAYMENT_SUCCEEDED with the amount changed to 1 cent after signing&quot;);
+<span class="fc" id="L194">            }</span>
+            case REPLAY_ATTACK -&gt; {
+<span class="fc" id="L196">                Payment payment = initiate(run, provider, order);</span>
+<span class="fc" id="L197">                send(</span>
+                        run,
+                        provider,
+                        payment,
+                        &quot;PAYMENT_SUCCEEDED&quot;,
+                        2,
+<span class="fc" id="L203">                        order.amountMinor(),</span>
+                        Tamper.STALE_TIMESTAMP,
+                        &quot;PAYMENT_SUCCEEDED signed 10 minutes ago (replayed)&quot;);
+<span class="fc" id="L206">            }</span>
+            case OUT_OF_ORDER -&gt; {
+<span class="fc" id="L208">                Payment payment = initiate(run, provider, order);</span>
+<span class="fc" id="L209">                provider.settle(payment, true);</span>
+<span class="fc" id="L210">                send(</span>
+                        run,
+                        provider,
+                        payment,
+                        &quot;PAYMENT_SUCCEEDED&quot;,
+                        2,
+<span class="fc" id="L216">                        order.amountMinor(),</span>
+                        Tamper.NONE,
+                        &quot;PAYMENT_SUCCEEDED (sequence 2)&quot;);
+<span class="fc" id="L219">                send(</span>
+                        run,
+                        provider,
+                        payment,
+                        &quot;PAYMENT_FAILED&quot;,
+                        1,
+<span class="fc" id="L225">                        order.amountMinor(),</span>
+                        Tamper.NONE,
+                        &quot;late PAYMENT_FAILED (sequence 1) from an earlier attempt&quot;);
+<span class="fc" id="L228">            }</span>
+            case MERCHANT_DOWN -&gt; {
+<span class="fc" id="L230">                sink.failFor(properties.merchantOutage());</span>
+<span class="fc" id="L231">                step(</span>
+                        run,
+                        &quot;demo merchant answers 500 for &quot;
+<span class="fc" id="L234">                                + properties.merchantOutage().toSeconds() + &quot; s&quot;,</span>
+                        null);
+<span class="fc" id="L236">                pay(run, provider, order);</span>
+<span class="fc" id="L237">            }</span>
+            case MERCHANT_SLOW -&gt; {
+<span class="fc" id="L239">                sink.slowFor(properties.merchantSlowDelay(), properties.merchantOutage());</span>
+<span class="fc" id="L240">                step(</span>
+                        run,
+<span class="fc" id="L242">                        &quot;demo merchant takes &quot; + properties.merchantSlowDelay().toSeconds() + &quot; s to answer, for &quot;</span>
+<span class="fc" id="L243">                                + properties.merchantOutage().toSeconds() + &quot; s&quot;,</span>
+                        null);
+<span class="fc" id="L245">                pay(run, provider, order);</span>
+<span class="fc" id="L246">            }</span>
+            case REFUND_FLOW -&gt; {
+<span class="fc" id="L248">                Payment payment = pay(run, provider, order);</span>
+<span class="fc" id="L249">                send(</span>
+                        run,
+                        provider,
+                        payment,
+                        &quot;REFUND_SUCCEEDED&quot;,
+                        3,
+                        PARTIAL_REFUND_MINOR,
+                        Tamper.NONE,
+                        &quot;REFUND_SUCCEEDED for &quot; + PARTIAL_REFUND_MINOR + &quot; cents (partial)&quot;);
+<span class="fc" id="L258">                long rest = order.amountMinor() - PARTIAL_REFUND_MINOR;</span>
+<span class="fc" id="L259">                send(</span>
+                        run,
+                        provider,
+                        payment,
+                        &quot;REFUND_SUCCEEDED&quot;,
+                        4,
+                        rest,
+                        Tamper.NONE,
+                        &quot;REFUND_SUCCEEDED for the remaining &quot; + rest + &quot; cents&quot;);
+            }
+        }
+<span class="fc" id="L270">    }</span>
+
+    /** PAYMENT_INITIATED (sequence 1): the order becomes PAYMENT_PENDING. */
+    private Payment initiate(ScenarioRun run, MockPayScripts provider, Order order) {
+<span class="fc" id="L274">        Payment payment = provider.open(order);</span>
+<span class="fc" id="L275">        send(</span>
+                run,
+                provider,
+                payment,
+                &quot;PAYMENT_INITIATED&quot;,
+                1,
+<span class="fc" id="L281">                order.amountMinor(),</span>
+                Tamper.NONE,
+                &quot;PAYMENT_INITIATED (sequence 1)&quot;);
+<span class="fc" id="L284">        return payment;</span>
+    }
+
+    /** INITIATED then SUCCEEDED: the order becomes PAID and an order.paid notification is queued. */
+    private Payment pay(ScenarioRun run, MockPayScripts provider, Order order) {
+<span class="fc" id="L289">        Payment payment = initiate(run, provider, order);</span>
+<span class="fc" id="L290">        provider.settle(payment, true);</span>
+<span class="fc" id="L291">        send(</span>
+                run,
+                provider,
+                payment,
+                &quot;PAYMENT_SUCCEEDED&quot;,
+                2,
+<span class="fc" id="L297">                order.amountMinor(),</span>
+                Tamper.NONE,
+                &quot;PAYMENT_SUCCEEDED (sequence 2)&quot;);
+<span class="fc" id="L300">        return payment;</span>
+    }
+
+    private void send(
+            ScenarioRun run,
+            MockPayScripts provider,
+            Payment payment,
+            String type,
+            long sequence,
+            long amountMinor,
+            Tamper tamper,
+            String description) {
+<span class="fc" id="L312">        MockPayScripts.Delivery delivery =</span>
+<span class="fc" id="L313">                provider.send(payment, provider.newEventId(), type, sequence, amountMinor, tamper, run.correlationId());</span>
+<span class="fc" id="L314">        step(run, description, delivery.status(), delivery.problem());</span>
+<span class="fc" id="L315">    }</span>
+
+    private void awaitStatus(ScenarioRun run, OrderStatus expected) throws InterruptedException {
+<span class="fc" id="L318">        long deadline = System.nanoTime() + properties.awaitTimeout().toNanos();</span>
+<span class="fc bfc" id="L319" title="All 2 branches covered.">        while (orders.get(run.orderId()).status() != expected) {</span>
+<span class="pc bpc" id="L320" title="1 of 2 branches missed.">            if (System.nanoTime() &gt; deadline) {</span>
+<span class="nc" id="L321">                step(</span>
+                        run,
+                        &quot;order did not reach &quot; + expected + &quot; within &quot;
+<span class="nc" id="L324">                                + properties.awaitTimeout().toSeconds() + &quot; s&quot;,</span>
+                        null);
+<span class="nc" id="L326">                return;</span>
+            }
+<span class="fc" id="L328">            Thread.sleep(50);</span>
+        }
+<span class="fc" id="L330">    }</span>
+
+    private void step(ScenarioRun run, String description, Integer httpStatus) {
+<span class="fc" id="L333">        step(run, description, httpStatus, null);</span>
+<span class="fc" id="L334">    }</span>
+
+    private void step(ScenarioRun run, String description, Integer httpStatus, String result) {
+<span class="fc" id="L337">        run.step(new ScenarioRun.Step(clock.instant(), description, httpStatus, result));</span>
+<span class="fc" id="L338">        Map&lt;String, Object&gt; detail = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L339">        detail.put(&quot;scenarioRunId&quot;, run.id());</span>
+<span class="fc" id="L340">        detail.put(&quot;scenario&quot;, run.scenario().slug());</span>
+<span class="fc" id="L341">        detail.put(&quot;step&quot;, description);</span>
+<span class="fc bfc" id="L342" title="All 2 branches covered.">        if (httpStatus != null) {</span>
+<span class="fc" id="L343">            detail.put(&quot;httpStatus&quot;, httpStatus);</span>
+        }
+<span class="fc bfc" id="L345" title="All 2 branches covered.">        if (result != null) {</span>
+<span class="fc" id="L346">            detail.put(&quot;result&quot;, result);</span>
+        }
+<span class="fc" id="L348">        audit.append(new AuditRecord(</span>
+                null,
+<span class="fc" id="L350">                run.orderId(),</span>
+                &quot;CHAOS_STEP&quot;,
+<span class="fc" id="L352">                json.writeValueAsString(detail),</span>
+<span class="fc" id="L353">                &quot;chaos:&quot; + run.scenario().slug(),</span>
+<span class="fc" id="L354">                run.correlationId(),</span>
+<span class="fc" id="L355">                clock.instant()));</span>
+<span class="fc" id="L356">    }</span>
+
+    private void safeStep(ScenarioRun run, String description) {
+        try {
+<span class="nc" id="L360">            step(run, description, null);</span>
+<span class="nc" id="L361">        } catch (RuntimeException ignored) {</span>
+            // the audit write itself failed; the run view still has the error
+<span class="nc" id="L363">        }</span>
+<span class="nc" id="L364">    }</span>
+
+    @PreDestroy
+    void shutdown() {
+<span class="nc" id="L368">        executor.shutdownNow();</span>
+<span class="nc" id="L369">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

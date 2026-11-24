@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrphanReprocessor.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.webhook</a> &gt; <span class="el_source">OrphanReprocessor.java</span></div><h1>OrphanReprocessor.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.webhook;
+
+import com.specshield.ledgerline.application.PaymentEventService;
+import com.specshield.ledgerline.application.PaymentInbox;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
+import org.springframework.stereotype.Component;
+
+/**
+ * Retries ORPHAN events (received before their order existed) every 30 seconds, for the configured window
+ * (default 1 hour) after they were received. Older orphans stay ORPHAN for manual follow-up.
+ */
+@Component
+public class OrphanReprocessor {
+
+<span class="fc" id="L20">    private static final Logger log = LoggerFactory.getLogger(OrphanReprocessor.class);</span>
+
+    private final PaymentInbox inbox;
+    private final PaymentEventService events;
+    private final WebhookProperties properties;
+    private final WebhookMetrics metrics;
+    private final Clock clock;
+
+    public OrphanReprocessor(
+            PaymentInbox inbox,
+            PaymentEventService events,
+            WebhookProperties properties,
+            WebhookMetrics metrics,
+<span class="fc" id="L33">            Clock clock) {</span>
+<span class="fc" id="L34">        this.inbox = inbox;</span>
+<span class="fc" id="L35">        this.events = events;</span>
+<span class="fc" id="L36">        this.properties = properties;</span>
+<span class="fc" id="L37">        this.metrics = metrics;</span>
+<span class="fc" id="L38">        this.clock = clock;</span>
+<span class="fc" id="L39">    }</span>
+
+    /** Returns the number of events applied. */
+    @Scheduled(cron = &quot;${ledgerline.webhook.mockpay.orphan-cron:*/30 * * * * *}&quot;, zone = &quot;UTC&quot;)
+    public int run() {
+<span class="fc" id="L44">        Instant since = clock.instant().minus(properties.orphanRetryWindow());</span>
+<span class="fc" id="L45">        int applied = 0;</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">        for (UUID orderId : inbox.orphanOrderIds(since)) {</span>
+            try {
+<span class="fc" id="L48">                PaymentEventService.Result result = events.reprocessOrphans(orderId, since);</span>
+<span class="fc" id="L49">                applied += result.applied();</span>
+<span class="fc" id="L50">                metrics.applied(result.applied());</span>
+<span class="fc" id="L51">                metrics.stale(result.stale());</span>
+<span class="fc" id="L52">            } catch (RuntimeException e) {</span>
+<span class="fc" id="L53">                log.error(&quot;orphan reprocessing failed for order {}&quot;, orderId, e);</span>
+<span class="fc" id="L54">            }</span>
+<span class="fc" id="L55">        }</span>
+<span class="fc bfc" id="L56" title="All 2 branches covered.">        if (applied &gt; 0) {</span>
+<span class="fc" id="L57">            log.info(&quot;orphan reprocessor applied {} event(s)&quot;, applied);</span>
+        }
+<span class="fc" id="L59">        return applied;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

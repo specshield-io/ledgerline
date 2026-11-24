@@ -1,0 +1,142 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderStateMachine.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.domain</a> &gt; <span class="el_source">OrderStateMachine.java</span></div><h1>OrderStateMachine.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.domain;
+
+import static com.specshield.ledgerline.domain.OrderStatus.CANCELLED;
+import static com.specshield.ledgerline.domain.OrderStatus.CREATED;
+import static com.specshield.ledgerline.domain.OrderStatus.PAID;
+import static com.specshield.ledgerline.domain.OrderStatus.PARTIALLY_REFUNDED;
+import static com.specshield.ledgerline.domain.OrderStatus.PAYMENT_FAILED;
+import static com.specshield.ledgerline.domain.OrderStatus.PAYMENT_PENDING;
+import static com.specshield.ledgerline.domain.OrderStatus.REFUNDED;
+
+import java.time.Clock;
+import java.time.Instant;
+
+/**
+ * The order payment lifecycle.
+ *
+ * &lt;p&gt;Checks run in this order:
+ *
+ * &lt;ol&gt;
+ *   &lt;li&gt;Order {@code CANCELLED}: every event is {@link Transition.Ignored}.
+ *   &lt;li&gt;{@code event.sequence &lt;= order.lastEventSequence}: {@link Transition.Stale} (out of order or replayed).
+ *   &lt;li&gt;{@code PAYMENT_FAILED} once the order is {@code PAID}, {@code PARTIALLY_REFUNDED} or {@code REFUNDED}:
+ *       {@link Transition.Stale}. A failure cannot undo a payment that already succeeded.
+ *   &lt;li&gt;The transition table:
+ *       &lt;pre&gt;
+ * CREATED            --PAYMENT_INITIATED--&gt; PAYMENT_PENDING
+ * PAYMENT_PENDING    --PAYMENT_SUCCEEDED--&gt; PAID
+ * PAYMENT_PENDING    --PAYMENT_FAILED-----&gt; PAYMENT_FAILED
+ * PAYMENT_FAILED     --PAYMENT_SUCCEEDED--&gt; PAID            (customer retried successfully)
+ * PAID               --REFUND_SUCCEEDED---&gt; PARTIALLY_REFUNDED (amount &amp;lt; refundable) or REFUNDED (amount = refundable)
+ * PARTIALLY_REFUNDED --REFUND_SUCCEEDED---&gt; PARTIALLY_REFUNDED or REFUNDED, same rule
+ *       &lt;/pre&gt;
+ *   &lt;li&gt;Anything else, including a refund above the refundable amount: {@link IllegalTransitionException}.
+ * &lt;/ol&gt;
+ *
+ * &lt;p&gt;The only command is {@link #cancel(Order)}, allowed from {@code CREATED} only.
+ */
+public final class OrderStateMachine {
+
+    private final Clock clock;
+
+<span class="fc" id="L42">    public OrderStateMachine(Clock clock) {</span>
+<span class="fc" id="L43">        this.clock = clock;</span>
+<span class="fc" id="L44">    }</span>
+
+    public Transition apply(Order order, PaymentEvent event) {
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (!order.id().equals(event.orderId())) {</span>
+<span class="fc" id="L48">            throw new IllegalArgumentException(</span>
+<span class="fc" id="L49">                    &quot;event &quot; + event.providerEventId() + &quot; is for order &quot; + event.orderId() + &quot;, not &quot; + order.id());</span>
+        }
+<span class="fc" id="L51">        OrderStatus from = order.status();</span>
+<span class="fc bfc" id="L52" title="All 2 branches covered.">        if (from == CANCELLED) {</span>
+<span class="fc" id="L53">            return new Transition.Ignored(&quot;order is CANCELLED; &quot; + event + &quot; ignored&quot;);</span>
+        }
+<span class="fc bfc" id="L55" title="All 2 branches covered.">        if (event.sequence() &lt;= order.lastEventSequence()) {</span>
+<span class="fc" id="L56">            return new Transition.Stale(event + &quot; has sequence &lt;= last applied sequence &quot; + order.lastEventSequence());</span>
+        }
+<span class="fc bfc" id="L58" title="All 4 branches covered.">        if (event.type() == PaymentEventType.PAYMENT_FAILED &amp;&amp; from.isPaidOrLater()) {</span>
+<span class="fc" id="L59">            return new Transition.Stale(event + &quot; arrived after the payment succeeded (order is &quot; + from + &quot;)&quot;);</span>
+        }
+
+<span class="fc bfc" id="L62" title="All 4 branches covered.">        return switch (event.type()) {</span>
+            case PAYMENT_INITIATED -&gt; {
+<span class="fc" id="L64">                requireFrom(from, CREATED, PAYMENT_PENDING, event);</span>
+<span class="fc" id="L65">                yield applied(order, PAYMENT_PENDING, order.refundedMinor(), event);</span>
+            }
+            case PAYMENT_SUCCEEDED -&gt; {
+<span class="fc bfc" id="L68" title="All 4 branches covered.">                if (from != PAYMENT_PENDING &amp;&amp; from != PAYMENT_FAILED) {</span>
+<span class="fc" id="L69">                    throw illegal(from, PAID, event, &quot;payment can only succeed from PAYMENT_PENDING or PAYMENT_FAILED&quot;);</span>
+                }
+<span class="fc" id="L71">                yield applied(order, PAID, order.refundedMinor(), event);</span>
+            }
+            case PAYMENT_FAILED -&gt; {
+<span class="fc" id="L74">                requireFrom(from, PAYMENT_PENDING, PAYMENT_FAILED, event);</span>
+<span class="fc" id="L75">                yield applied(order, PAYMENT_FAILED, order.refundedMinor(), event);</span>
+            }
+<span class="fc" id="L77">            case REFUND_SUCCEEDED -&gt; refund(order, event);</span>
+        };
+    }
+
+    /**
+     * Checks that a payment may be requested: the order is CREATED, or PAYMENT_FAILED (the customer retries). Asking
+     * for a payment does not change state; the provider reports progress through events.
+     */
+    public void requirePayable(Order order) {
+<span class="fc" id="L86">        OrderStatus from = order.status();</span>
+<span class="fc bfc" id="L87" title="All 4 branches covered.">        if (from != CREATED &amp;&amp; from != PAYMENT_FAILED) {</span>
+<span class="fc" id="L88">            throw illegal(</span>
+                    from,
+                    PAYMENT_PENDING,
+                    &quot;pay()&quot;,
+                    &quot;payment can only be requested for a CREATED or PAYMENT_FAILED order&quot;);
+        }
+<span class="fc" id="L94">    }</span>
+
+    /** CREATED to CANCELLED. Any other state throws {@link IllegalTransitionException}. */
+    public Order cancel(Order order) {
+<span class="fc bfc" id="L98" title="All 2 branches covered.">        if (order.status() != CREATED) {</span>
+<span class="fc" id="L99">            throw illegal(order.status(), CANCELLED, &quot;cancel()&quot;, &quot;only a CREATED order can be cancelled&quot;);</span>
+        }
+<span class="fc" id="L101">        return order.withStatus(CANCELLED, now());</span>
+    }
+
+    private Transition refund(Order order, PaymentEvent event) {
+<span class="fc" id="L105">        OrderStatus from = order.status();</span>
+<span class="fc" id="L106">        Money refund = Money.usd(event.amountMinor());</span>
+<span class="fc" id="L107">        Money refundable = order.refundable();</span>
+<span class="fc bfc" id="L108" title="All 2 branches covered.">        OrderStatus to = refund.compareTo(refundable) &gt;= 0 ? REFUNDED : PARTIALLY_REFUNDED;</span>
+<span class="fc bfc" id="L109" title="All 4 branches covered.">        if (from != PAID &amp;&amp; from != PARTIALLY_REFUNDED) {</span>
+<span class="fc" id="L110">            throw illegal(from, to, event, &quot;refunds are only possible from PAID or PARTIALLY_REFUNDED&quot;);</span>
+        }
+<span class="fc bfc" id="L112" title="All 2 branches covered.">        if (refund.isGreaterThan(refundable)) {</span>
+<span class="fc" id="L113">            throw illegal(</span>
+                    from,
+                    to,
+                    event,
+<span class="fc" id="L117">                    &quot;refund &quot; + refund.amountMinor() + &quot; exceeds refundable amount &quot; + refundable.amountMinor());</span>
+        }
+<span class="fc" id="L119">        Money refundedAfter = order.refunded().plus(refund);</span>
+<span class="fc" id="L120">        return applied(order, to, refundedAfter.amountMinor(), event);</span>
+    }
+
+    private Transition applied(Order order, OrderStatus to, long refundedMinor, PaymentEvent event) {
+<span class="fc" id="L124">        Order next = order.withPaymentState(to, refundedMinor, event.sequence(), event.occurredAt(), now());</span>
+<span class="fc" id="L125">        return new Transition.Applied(to, next);</span>
+    }
+
+    private static void requireFrom(OrderStatus from, OrderStatus required, OrderStatus to, PaymentEvent event) {
+<span class="fc bfc" id="L129" title="All 2 branches covered.">        if (from != required) {</span>
+<span class="fc" id="L130">            throw illegal(from, to, event, event.type() + &quot; is only allowed from &quot; + required);</span>
+        }
+<span class="fc" id="L132">    }</span>
+
+    private static IllegalTransitionException illegal(OrderStatus from, OrderStatus to, Object event, String reason) {
+<span class="fc" id="L135">        return new IllegalTransitionException(from, to, String.valueOf(event), reason);</span>
+    }
+
+    private Instant now() {
+<span class="fc" id="L139">        return clock.instant();</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

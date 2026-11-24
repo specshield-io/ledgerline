@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>OrderResponse.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">OrderResponse.java</span></div><h1>OrderResponse.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderStatus;
+import io.swagger.v3.oas.annotations.media.Schema;
+import java.time.Instant;
+import java.util.UUID;
+
+@Schema(name = &quot;Order&quot;)
+<span class="fc" id="L10">public record OrderResponse(</span>
+        UUID id,
+        String merchantRef,
+
+        @Schema(description = &quot;Amount in minor units (cents)&quot;)
+        long amountMinor,
+
+        String currency,
+        OrderStatus status,
+
+        @Schema(description = &quot;Refunded so far, in minor units&quot;)
+        long refundedMinor,
+
+        @Schema(description = &quot;Optimistic-locking version; increases on every change&quot;)
+        long version,
+
+        Instant createdAt,
+        Instant updatedAt,
+
+        @Schema(description = &quot;Provider timestamp of the last applied payment event&quot;, nullable = true)
+        Instant lastProviderEventAt) {
+
+    static OrderResponse from(Order o) {
+<span class="fc" id="L33">        return new OrderResponse(</span>
+<span class="fc" id="L34">                o.id(),</span>
+<span class="fc" id="L35">                o.merchantRef(),</span>
+<span class="fc" id="L36">                o.amountMinor(),</span>
+<span class="fc" id="L37">                o.currency(),</span>
+<span class="fc" id="L38">                o.status(),</span>
+<span class="fc" id="L39">                o.refundedMinor(),</span>
+<span class="fc" id="L40">                o.version(),</span>
+<span class="fc" id="L41">                o.createdAt(),</span>
+<span class="fc" id="L42">                o.updatedAt(),</span>
+<span class="fc" id="L43">                o.lastProviderEventAt());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

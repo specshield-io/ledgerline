@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MerchantNotifications.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.application</a> &gt; <span class="el_source">MerchantNotifications.java</span></div><h1>MerchantNotifications.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.application;
+
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderStatus;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.Optional;
+import org.springframework.stereotype.Component;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * Turns an order status change into a merchant notification in the outbox. Call it inside the transaction that
+ * changes the order, so the notification exists if and only if the change commits.
+ *
+ * &lt;p&gt;Only outcomes a merchant acts on are announced: {@code order.paid}, {@code order.payment_failed},
+ * {@code order.refunded}, {@code order.partially_refunded} and {@code order.cancelled}. PAYMENT_PENDING is an internal
+ * step and produces no notification.
+ */
+@Component
+public class MerchantNotifications {
+
+    private final Outbox outbox;
+    private final JsonMapper json;
+
+<span class="fc" id="L27">    public MerchantNotifications(Outbox outbox, JsonMapper json) {</span>
+<span class="fc" id="L28">        this.outbox = outbox;</span>
+<span class="fc" id="L29">        this.json = json;</span>
+<span class="fc" id="L30">    }</span>
+
+    public static Optional&lt;String&gt; eventType(OrderStatus status) {
+<span class="fc" id="L33">        return Optional.ofNullable(</span>
+<span class="fc bfc" id="L34" title="All 6 branches covered.">                switch (status) {</span>
+<span class="fc" id="L35">                    case PAID -&gt; &quot;order.paid&quot;;</span>
+<span class="fc" id="L36">                    case PAYMENT_FAILED -&gt; &quot;order.payment_failed&quot;;</span>
+<span class="fc" id="L37">                    case REFUNDED -&gt; &quot;order.refunded&quot;;</span>
+<span class="fc" id="L38">                    case PARTIALLY_REFUNDED -&gt; &quot;order.partially_refunded&quot;;</span>
+<span class="fc" id="L39">                    case CANCELLED -&gt; &quot;order.cancelled&quot;;</span>
+<span class="fc" id="L40">                    case CREATED, PAYMENT_PENDING -&gt; null;</span>
+                });
+    }
+
+    /** Appends a notification for {@code order}'s new status, if that status is announced. */
+    public void statusChanged(OrderStatus previous, Order order, Instant at) {
+<span class="fc" id="L46">        Optional&lt;String&gt; type = eventType(order.status());</span>
+<span class="fc bfc" id="L47" title="All 2 branches covered.">        if (type.isEmpty()) {</span>
+<span class="fc" id="L48">            return;</span>
+        }
+<span class="fc" id="L50">        Map&lt;String, Object&gt; data = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L51">        data.put(&quot;orderId&quot;, order.id().toString());</span>
+<span class="fc" id="L52">        data.put(&quot;merchantRef&quot;, order.merchantRef());</span>
+<span class="fc" id="L53">        data.put(&quot;status&quot;, order.status().name());</span>
+<span class="fc" id="L54">        data.put(&quot;previousStatus&quot;, previous.name());</span>
+<span class="fc" id="L55">        data.put(&quot;amountMinor&quot;, order.amountMinor());</span>
+<span class="fc" id="L56">        data.put(&quot;refundedMinor&quot;, order.refundedMinor());</span>
+<span class="fc" id="L57">        data.put(&quot;currency&quot;, order.currency());</span>
+        // Microseconds, like every timestamp the database stores.
+<span class="fc" id="L59">        data.put(&quot;occurredAt&quot;, at.truncatedTo(ChronoUnit.MICROS).toString());</span>
+<span class="fc" id="L60">        outbox.append(order.id(), type.get(), json.writeValueAsString(data), at);</span>
+<span class="fc" id="L61">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>RequestLimitsFilter.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">RequestLimitsFilter.java</span></div><h1>RequestLimitsFilter.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.InvalidMediaTypeException;
+import org.springframework.http.MediaType;
+import org.springframework.web.filter.OncePerRequestFilter;
+
+/**
+ * Global request-body rules, before any controller or authentication work:
+ *
+ * &lt;ul&gt;
+ *   &lt;li&gt;a body above {@value #MAX_BODY_BYTES} bytes is 413, whether it declares a Content-Length or is chunked (a
+ *       chunked body is buffered up to the limit and handed on);
+ *   &lt;li&gt;a body that is not JSON ({@code application/json} or {@code application/*+json}) is 415.
+ * &lt;/ul&gt;
+ *
+ * &lt;p&gt;Requests without a body (GET, the chaos POST) pass. Not a Spring bean; registered in the security chain.
+ */
+public class RequestLimitsFilter extends OncePerRequestFilter {
+
+    public static final int MAX_BODY_BYTES = 64 * 1024;
+
+    private final ProblemResponses problems;
+
+<span class="fc" id="L30">    public RequestLimitsFilter(ProblemResponses problems) {</span>
+<span class="fc" id="L31">        this.problems = problems;</span>
+<span class="fc" id="L32">    }</span>
+
+    @Override
+    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain chain)
+            throws ServletException, IOException {
+<span class="fc" id="L37">        long length = request.getContentLengthLong();</span>
+<span class="fc" id="L38">        String transferEncoding = request.getHeader(&quot;Transfer-Encoding&quot;);</span>
+<span class="fc bfc" id="L39" title="All 2 branches covered.">        boolean chunked =</span>
+<span class="pc bpc" id="L40" title="1 of 2 branches missed.">                transferEncoding != null &amp;&amp; transferEncoding.toLowerCase().contains(&quot;chunked&quot;);</span>
+<span class="fc bfc" id="L41" title="All 4 branches covered.">        if (length &lt;= 0 &amp;&amp; !chunked) {</span>
+<span class="fc" id="L42">            chain.doFilter(request, response);</span>
+<span class="fc" id="L43">            return;</span>
+        }
+<span class="fc bfc" id="L45" title="All 2 branches covered.">        if (length &gt; MAX_BODY_BYTES) {</span>
+<span class="fc" id="L46">            tooLarge(request, response);</span>
+<span class="fc" id="L47">            return;</span>
+        }
+<span class="fc bfc" id="L49" title="All 2 branches covered.">        if (!isJson(request.getContentType())) {</span>
+<span class="fc" id="L50">            problems.write(</span>
+                    request,
+                    response,
+<span class="fc" id="L53">                    ProblemResponses.problem(</span>
+                            HttpStatus.UNSUPPORTED_MEDIA_TYPE,
+                            ProblemTypes.UNSUPPORTED_MEDIA_TYPE,
+                            &quot;Unsupported media type&quot;,
+                            &quot;Request bodies must be application/json.&quot;,
+                            null));
+<span class="fc" id="L59">            return;</span>
+        }
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (length &lt; 0) {</span>
+<span class="fc" id="L62">            byte[] body = request.getInputStream().readNBytes(MAX_BODY_BYTES + 1);</span>
+<span class="fc bfc" id="L63" title="All 2 branches covered.">            if (body.length &gt; MAX_BODY_BYTES) {</span>
+<span class="fc" id="L64">                tooLarge(request, response);</span>
+<span class="fc" id="L65">                return;</span>
+            }
+<span class="fc" id="L67">            chain.doFilter(new IdempotencyFilter.CachedBodyRequest(request, body), response);</span>
+<span class="fc" id="L68">            return;</span>
+        }
+<span class="fc" id="L70">        chain.doFilter(request, response);</span>
+<span class="fc" id="L71">    }</span>
+
+    static boolean isJson(String contentType) {
+<span class="pc bpc" id="L74" title="1 of 2 branches missed.">        if (contentType == null) {</span>
+<span class="nc" id="L75">            return false;</span>
+        }
+        try {
+<span class="fc" id="L78">            MediaType type = MediaType.parseMediaType(contentType);</span>
+<span class="fc bfc" id="L79" title="All 2 branches covered.">            return &quot;application&quot;.equals(type.getType())</span>
+<span class="pc bpc" id="L80" title="1 of 4 branches missed.">                    &amp;&amp; (&quot;json&quot;.equals(type.getSubtype()) || type.getSubtype().endsWith(&quot;+json&quot;));</span>
+<span class="fc" id="L81">        } catch (InvalidMediaTypeException e) {</span>
+<span class="fc" id="L82">            return false;</span>
+        }
+    }
+
+    private void tooLarge(HttpServletRequest request, HttpServletResponse response) throws IOException {
+<span class="fc" id="L87">        problems.write(</span>
+                request,
+                response,
+<span class="fc" id="L90">                ProblemResponses.problem(</span>
+                        HttpStatus.CONTENT_TOO_LARGE,
+                        ProblemTypes.PAYLOAD_TOO_LARGE,
+                        &quot;Payload too large&quot;,
+                        &quot;Request bodies are limited to &quot; + MAX_BODY_BYTES + &quot; bytes.&quot;,
+                        null));
+<span class="fc" id="L96">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

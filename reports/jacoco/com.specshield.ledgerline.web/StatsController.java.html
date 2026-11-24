@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StatsController.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">StatsController.java</span></div><h1>StatsController.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+import com.specshield.ledgerline.application.OutboxStatus;
+import com.specshield.ledgerline.application.OutboxStore;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.media.Schema;
+import io.swagger.v3.oas.annotations.tags.Tag;
+import java.time.Clock;
+import java.time.Instant;
+import java.util.function.Predicate;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * Reliability counters for the operations console, read from the same Micrometer meters that
+ * {@code /actuator/prometheus} exports (which needs a VIEWER account), so the two never disagree.
+ */
+@RestController
+@Tag(name = &quot;Meta&quot;, description = &quot;About this deployment&quot;)
+public class StatsController {
+
+    private final MeterRegistry meters;
+    private final OutboxStore outbox;
+    private final Instant countingSince;
+
+<span class="fc" id="L29">    public StatsController(MeterRegistry meters, OutboxStore outbox, Clock clock) {</span>
+<span class="fc" id="L30">        this.meters = meters;</span>
+<span class="fc" id="L31">        this.outbox = outbox;</span>
+<span class="fc" id="L32">        this.countingSince = clock.instant();</span>
+<span class="fc" id="L33">    }</span>
+
+    @Schema(name = &quot;Stats&quot;, description = &quot;Webhook counters since countingSince, outbox state now&quot;)
+<span class="fc" id="L36">    public record StatsResponse(</span>
+            @Schema(description = &quot;Webhook deliveries received&quot;)
+            long received,
+
+            @Schema(description = &quot;Provider events applied to orders&quot;)
+            long applied,
+
+            @Schema(description = &quot;Deliveries of an already stored event, acknowledged and not applied again&quot;)
+            long duplicatesBlocked,
+
+            @Schema(description = &quot;Deliveries refused for a missing, invalid or expired signature&quot;)
+            long signaturesRejected,
+
+            @Schema(description = &quot;Merchant notifications waiting for delivery or retry&quot;)
+            long outboxPending,
+
+            @Schema(description = &quot;Merchant notifications that ran out of attempts&quot;)
+            long outboxDead,
+
+            @Schema(description = &quot;Counters are per instance and start at zero when it starts&quot;)
+            Instant countingSince) {}
+
+    @GetMapping(&quot;/api/v1/stats&quot;)
+    @Operation(summary = &quot;Reliability counters for dashboards&quot;)
+    @Transactional(readOnly = true)
+    StatsResponse stats() {
+<span class="fc" id="L62">        return new StatsResponse(</span>
+<span class="fc" id="L63">                sum(&quot;ledgerline.webhook.received&quot;, c -&gt; true),</span>
+<span class="fc" id="L64">                sum(&quot;ledgerline.webhook.applied&quot;, c -&gt; true),</span>
+<span class="fc" id="L65">                sum(&quot;ledgerline.webhook.duplicates&quot;, c -&gt; true),</span>
+                // Malformed bodies that were validly signed are not signature failures.
+<span class="fc" id="L67">                sum(</span>
+                        &quot;ledgerline.webhook.rejected&quot;,
+<span class="fc bfc" id="L69" title="All 2 branches covered.">                        c -&gt; !&quot;malformed_event&quot;.equals(c.getId().getTag(&quot;reason&quot;))),</span>
+<span class="fc" id="L70">                outbox.countByStatus(OutboxStatus.PENDING),</span>
+<span class="fc" id="L71">                outbox.countByStatus(OutboxStatus.DEAD),</span>
+                countingSince);
+    }
+
+    private long sum(String name, Predicate&lt;Counter&gt; include) {
+<span class="fc" id="L76">        return Math.round(meters.find(name).counters().stream()</span>
+<span class="fc" id="L77">                .filter(include)</span>
+<span class="fc" id="L78">                .mapToDouble(Counter::count)</span>
+<span class="fc" id="L79">                .sum());</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

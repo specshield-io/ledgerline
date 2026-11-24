@@ -1,0 +1,2249 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>Order.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package com.specshield.ledgerline.domain;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.time.Instant;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.time.temporal.ChronoUnit;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.Objects;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>import java.util.UUID;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * An order and its payment state. Immutable: every change produces a new instance.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;Invariants, checked on construction:</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_14'/>
+14
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_14'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;{@code merchantRef} is not blank and at most {@value #MERCHANT_REF_MAX_LENGTH} characters;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_15'/>
+15
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_15'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;{@code amountMinor} is between {@value #MIN_AMOUNT_MINOR} and {@value #MAX_AMOUNT_MINOR};</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;{@code currency} is {@code &#34;USD&#34;};</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;{@code refundedMinor} matches the status: 0 before any refund, strictly between 0 and the amount when</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *       {@code PARTIALLY_REFUNDED}, equal to the amount when {@code REFUNDED};</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *   &#60;li&#62;{@code lastEventSequence} is 0 (no provider event applied yet) or the sequence of the last applied event.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;/ul&#62;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_21'/>
+21
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_21'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;All instants are UTC and truncated to microseconds, the precision PostgreSQL {@code timestamptz} stores, so</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * an order read back from the database equals the one that was saved.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_25'/>
+25
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_25'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>public record Order(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        UUID id,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        String merchantRef,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        long amountMinor,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        String currency,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_30'/>
+30
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_30'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        OrderStatus status,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        long refundedMinor,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        long lastEventSequence,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        long version,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        Instant createdAt,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        Instant updatedAt,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        Instant lastProviderEventAt) {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_37'/>
+37
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_37'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static final int MERCHANT_REF_MAX_LENGTH = 64;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static final long MIN_AMOUNT_MINOR = 1;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static final long MAX_AMOUNT_MINOR = 100_000_000;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    public Order {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        Objects.requireNonNull(id, &#34;id&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        Objects.requireNonNull(status, &#34;status&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_45'/>
+45
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_45'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        Objects.requireNonNull(createdAt, &#34;createdAt&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        Objects.requireNonNull(updatedAt, &#34;updatedAt&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_47'/>
+47
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_47'>1</a>
+<span>
+1. &#60;init&#62; : removed call to com/specshield/ledgerline/domain/Order::requireValidMerchantRef &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        requireValidMerchantRef(merchantRef);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_48'/>
+48
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_48'>1</a>
+<span>
+1. &#60;init&#62; : removed call to com/specshield/ledgerline/domain/Order::requireValidAmount &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        requireValidAmount(amountMinor);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_49'/>
+49
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_49'>1</a>
+<span>
+1. &#60;init&#62; : removed call to com/specshield/ledgerline/domain/Money::requireSupportedCurrency &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        Money.requireSupportedCurrency(currency);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_50'/>
+50
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_50'>1</a>
+<span>
+1. &#60;init&#62; : removed call to com/specshield/ledgerline/domain/Order::requireRefundedConsistentWithStatus &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        requireRefundedConsistentWithStatus(status, amountMinor, refundedMinor);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_51'/>
+51
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_51'>2</a>
+<span>
+1. &#60;init&#62; : negated conditional &rarr; KILLED<br/>
+2. &#60;init&#62; : changed conditional boundary &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (lastEventSequence &#60; 0) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;lastEventSequence must not be negative, was &#34; + lastEventSequence);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_53'/>
+53
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_53'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_54'/>
+54
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_54'>2</a>
+<span>
+1. &#60;init&#62; : changed conditional boundary &rarr; KILLED<br/>
+2. &#60;init&#62; : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (version &#60; 0) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;version must not be negative, was &#34; + version);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        createdAt = createdAt.truncatedTo(ChronoUnit.MICROS);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_58'/>
+58
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_58'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        updatedAt = updatedAt.truncatedTo(ChronoUnit.MICROS);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_59'/>
+59
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_59'>1</a>
+<span>
+1. &#60;init&#62; : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        lastProviderEventAt = lastProviderEventAt == null ? null : lastProviderEventAt.truncatedTo(ChronoUnit.MICROS);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_62'/>
+62
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_62'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** A new order in {@link OrderStatus#CREATED}. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static Order create(UUID id, String merchantRef, long amountMinor, String currency, Instant now) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_64'/>
+64
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_64'>1</a>
+<span>
+1. create : replaced return value with null for com/specshield/ledgerline/domain/Order::create &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Order(id, merchantRef, amountMinor, currency, OrderStatus.CREATED, 0, 0, 0, now, now, null);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_65'/>
+65
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_65'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public Money amount() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_68'/>
+68
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_68'>1</a>
+<span>
+1. amount : replaced return value with null for com/specshield/ledgerline/domain/Order::amount &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Money(amountMinor, currency);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_69'/>
+69
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_69'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_70'/>
+70
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_70'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_71'/>
+71
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_71'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public Money refunded() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_72'/>
+72
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_72'>1</a>
+<span>
+1. refunded : replaced return value with null for com/specshield/ledgerline/domain/Order::refunded &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Money(refundedMinor, currency);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_73'/>
+73
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_73'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_74'/>
+74
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_74'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_75'/>
+75
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_75'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Amount that can still be refunded. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_76'/>
+76
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_76'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public Money refundable() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_77'/>
+77
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_77'>1</a>
+<span>
+1. refundable : replaced return value with null for com/specshield/ledgerline/domain/Order::refundable &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return amount().minus(refunded());</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_78'/>
+78
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_78'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_79'/>
+79
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_79'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_80'/>
+80
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_80'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    Order withPaymentState(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_81'/>
+81
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_81'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>            OrderStatus newStatus, long newRefundedMinor, long sequence, Instant providerEventAt, Instant now) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_82'/>
+82
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_82'>1</a>
+<span>
+1. withPaymentState : replaced return value with null for com/specshield/ledgerline/domain/Order::withPaymentState &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Order(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_83'/>
+83
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_83'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                id,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_84'/>
+84
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_84'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                merchantRef,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_85'/>
+85
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_85'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                amountMinor,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_86'/>
+86
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_86'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                currency,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_87'/>
+87
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_87'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                newStatus,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_88'/>
+88
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_88'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                newRefundedMinor,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_89'/>
+89
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_89'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                sequence,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_90'/>
+90
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_90'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                version,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_91'/>
+91
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_91'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                createdAt,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_92'/>
+92
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_92'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                now,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_93'/>
+93
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_93'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                providerEventAt);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_94'/>
+94
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_94'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_95'/>
+95
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_95'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_96'/>
+96
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_96'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    Order withStatus(OrderStatus newStatus, Instant now) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_97'/>
+97
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_97'>1</a>
+<span>
+1. withStatus : replaced return value with null for com/specshield/ledgerline/domain/Order::withStatus &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Order(</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_98'/>
+98
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_98'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                id,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_99'/>
+99
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_99'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                merchantRef,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_100'/>
+100
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_100'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                amountMinor,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_101'/>
+101
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_101'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                currency,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_102'/>
+102
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_102'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                newStatus,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_103'/>
+103
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_103'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                refundedMinor,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_104'/>
+104
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_104'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                lastEventSequence,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_105'/>
+105
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_105'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                version,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_106'/>
+106
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_106'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                createdAt,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_107'/>
+107
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_107'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                now,</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_108'/>
+108
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_108'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                lastProviderEventAt);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_109'/>
+109
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_109'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_110'/>
+110
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_110'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_111'/>
+111
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_111'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    static void requireValidAmount(long amountMinor) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_112'/>
+112
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_112'>4</a>
+<span>
+1. requireValidAmount : negated conditional &rarr; KILLED<br/>
+2. requireValidAmount : changed conditional boundary &rarr; KILLED<br/>
+3. requireValidAmount : negated conditional &rarr; KILLED<br/>
+4. requireValidAmount : changed conditional boundary &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (amountMinor &#60; MIN_AMOUNT_MINOR || amountMinor &#62; MAX_AMOUNT_MINOR) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_113'/>
+113
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_113'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;amountMinor must be between &#34; + MIN_AMOUNT_MINOR + &#34; and &#34;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_114'/>
+114
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_114'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                    + MAX_AMOUNT_MINOR + &#34;, was &#34; + amountMinor);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_115'/>
+115
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_115'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_116'/>
+116
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_116'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_117'/>
+117
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_117'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_118'/>
+118
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_118'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    private static void requireValidMerchantRef(String merchantRef) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_119'/>
+119
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_119'>2</a>
+<span>
+1. requireValidMerchantRef : negated conditional &rarr; KILLED<br/>
+2. requireValidMerchantRef : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (merchantRef == null || merchantRef.isBlank()) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_120'/>
+120
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_120'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;merchantRef must not be blank&#34;);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_121'/>
+121
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_121'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_122'/>
+122
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_122'>2</a>
+<span>
+1. requireValidMerchantRef : changed conditional boundary &rarr; KILLED<br/>
+2. requireValidMerchantRef : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (merchantRef.length() &#62; MERCHANT_REF_MAX_LENGTH) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_123'/>
+123
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_123'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;merchantRef must be at most &#34; + MERCHANT_REF_MAX_LENGTH</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_124'/>
+124
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_124'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>                    + &#34; characters, was &#34; + merchantRef.length());</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_125'/>
+125
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_125'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_126'/>
+126
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_126'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_127'/>
+127
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_127'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_128'/>
+128
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_128'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    private static void requireRefundedConsistentWithStatus(OrderStatus status, long amountMinor, long refunded) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_129'/>
+129
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_129'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        boolean consistent = switch (status) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_130'/>
+130
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_130'>4</a>
+<span>
+1. requireRefundedConsistentWithStatus : negated conditional &rarr; KILLED<br/>
+2. requireRefundedConsistentWithStatus : negated conditional &rarr; KILLED<br/>
+3. requireRefundedConsistentWithStatus : changed conditional boundary &rarr; KILLED<br/>
+4. requireRefundedConsistentWithStatus : changed conditional boundary &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>            case PARTIALLY_REFUNDED -&#62; refunded &#62; 0 &#38;&#38; refunded &#60; amountMinor;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_131'/>
+131
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_131'>1</a>
+<span>
+1. requireRefundedConsistentWithStatus : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>            case REFUNDED -&#62; refunded == amountMinor;</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_132'/>
+132
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_132'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            default -&#62; refunded == 0;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_133'/>
+133
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_133'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        };</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_134'/>
+134
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_134'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>        if (!consistent) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_135'/>
+135
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_135'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;refundedMinor &#34; + refunded + &#34; is inconsistent with status &#34; + status</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_136'/>
+136
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_136'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>                    + &#34; and amountMinor &#34; + amountMinor);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_137'/>
+137
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_137'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_138'/>
+138
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_138'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@7597bcc7_139'/>
+139
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_139'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_47'>47</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_47'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:merchantRef()]</span></span> removed call to com/specshield/ledgerline/domain/Order::requireValidMerchantRef &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_48'>48</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_48'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#2]</span></span> removed call to com/specshield/ledgerline/domain/Order::requireValidAmount &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_49'>49</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_49'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#4]</span></span> removed call to com/specshield/ledgerline/domain/Money::requireSupportedCurrency &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_50'>50</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_50'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()]</span></span> removed call to com/specshield/ledgerline/domain/Order::requireRefundedConsistentWithStatus &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_51'>51</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_51'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_54'>54</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_54'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_59'>59</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_59'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_64'>64</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_64'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>create<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Order::create &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_68'>68</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_68'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>amount<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Order::amount &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_72'>72</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_72'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>refunded<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#4]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Order::refunded &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_77'>77</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_77'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>refundable<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#4]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Order::refundable &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_82'>82</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_82'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>withPaymentState<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:pendingToPaid()]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Order::withPaymentState &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_97'>97</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_97'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>withStatus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelCreated()]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Order::withStatus &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_112'>112</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_112'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requireValidAmount<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:eventAmount()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>requireValidAmount<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>requireValidAmount<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:eventAmount()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>requireValidAmount<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_119'>119</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_119'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requireValidMerchantRef<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#2]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>requireValidMerchantRef<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#2]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_122'>122</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_122'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requireValidMerchantRef<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:merchantRef()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>requireValidMerchantRef<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#2]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_130'>130</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_130'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requireRefundedConsistentWithStatus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>requireRefundedConsistentWithStatus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>requireRefundedConsistentWithStatus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>4.<span><b>4</b><br/><b>Location : </b>requireRefundedConsistentWithStatus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@7597bcc7_131'>131</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@7597bcc7_131'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requireRefundedConsistentWithStatus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NEGATE_CONDITIONALS</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#2] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#5] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#4] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#2] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:nullCurrency()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#3] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#1] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidAmounts(long)]/[test-template-invocation:#4] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#3] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#1] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:appliedConsistency()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:merchantRef()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelCreated()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:otherFields()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:eventForAnotherOrder()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:staleWinsOverIllegal()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#1] (4 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelOtherStatesThrows()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelledIgnoresEvents()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#26] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#28] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#25] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:foreignEvent()] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#27] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#19] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#23] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:staleEventsDoNotChangeState()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:pendingToPaid()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#5] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#9] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#13] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#17] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#21] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:requirePayable()] (3 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#14] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#18] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#3] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#11] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:failedThenRetrySucceeds()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#6] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#10] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:createdToPending()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#2] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#15] (4 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#22] (3 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#24] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:fullRefundFromPaid()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#7] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#4] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#8] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#12] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:cancelledIgnoresEverything()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#20] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:duplicatesInBatch()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#16] (0 ms)</li><li>com.specshield.ledgerline.application.SmallServicesTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.SmallServicesTest]/[method:notifications()] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:appliesInSequenceOrder()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:staleSequences()] (0 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:create()] (5 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:reject()] (6 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#1] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:partialThenFullRefund()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:illegalEventBlocks()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:gapWaits()] (0 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:pay()] (4 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:timelineAndDeliveries()] (6 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:ignoredAndOrphan()] (4 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:duplicate()] (2 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:orphans()] (3 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:cancel()] (28 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:stale()] (4 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:gap()] (5 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:applies()] (6 ms)</li><li>com.specshield.ledgerline.application.SmallServicesTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.SmallServicesTest]/[method:reconciliation()] (42 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:failed()] (26 ms)</li><li>com.specshield.ledgerline.application.SmallServicesTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.SmallServicesTest]/[method:demoData()] (71 ms)</li><li>com.specshield.ledgerline.domain.EventReplayPropertyTest.[engine:jqwik]/[class:com.specshield.ledgerline.domain.EventReplayPropertyTest]/[property:naiveApplicationLosesOutOfOrderRefund()] (99 ms)</li><li>com.specshield.ledgerline.domain.EventReplayPropertyTest.[engine:jqwik]/[class:com.specshield.ledgerline.domain.EventReplayPropertyTest]/[property:duplicatedAndShuffledDeliveryConverges(com.specshield.ledgerline.domain.EventReplayPropertyTest$Scenario)] (622 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:eventAmount()] (0 ms)</li><li>com.specshield.ledgerline.webhook.MockPayEventDecoderTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayEventDecoderTest]/[test-template:malformed(java.lang.String)]/[test-template-invocation:#11] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:stepInvariant()] (3 ms)</li><li>com.specshield.ledgerline.webhook.MockPayEventDecoderTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayEventDecoderTest]/[test-template:malformed(java.lang.String)]/[test-template-invocation:#8] (0 ms)</li><li>com.specshield.ledgerline.webhook.MockPayEventDecoderTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayEventDecoderTest]/[method:decodes()] (0 ms)</li><li>com.specshield.ledgerline.webhook.MockPayWebhookControllerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayWebhookControllerTest]/[method:failure()] (3 ms)</li><li>com.specshield.ledgerline.webhook.MockPayWebhookControllerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayWebhookControllerTest]/[method:duplicate()] (2 ms)</li><li>com.specshield.ledgerline.webhook.MockPayWebhookControllerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.webhook.MockPayWebhookControllerTest]/[method:applied()] (2 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.30.2 <a href='https://github.com/sponsors/hcoles'>support</a>
+
+</body>
+</html>

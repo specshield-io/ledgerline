@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MerchantSink.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.webhook</a> &gt; <span class="el_source">MerchantSink.java</span></div><h1>MerchantSink.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.webhook;
+
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayDeque;
+import java.util.Deque;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Objects;
+import java.util.Set;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.stereotype.Component;
+
+/**
+ * State of the demo merchant: how it answers, and what it received. In memory only; it is a stand-in for a merchant's
+ * system, not part of Ledgerline. It deduplicates by {@code Ledgerline-Event-Id}, as a real receiver must, and
+ * reports repeats as duplicates.
+ *
+ * &lt;p&gt;{@link Mode#FAIL} answers 500 and {@link Mode#SLOW} answers after a delay. The chaos scenarios
+ * {@code merchant-down} and {@code merchant-slow} switch them on for a time window ({@link #failFor},
+ * {@link #slowFor}), measured with the injected clock; afterwards the sink is OK again.
+ */
+@Component
+@ConditionalOnProperty(name = &quot;ledgerline.merchant.sink.enabled&quot;, havingValue = &quot;true&quot;)
+public class MerchantSink {
+
+<span class="fc" id="L28">    public enum Mode {</span>
+<span class="fc" id="L29">        OK,</span>
+<span class="fc" id="L30">        FAIL,</span>
+<span class="fc" id="L31">        SLOW</span>
+    }
+
+    /**
+     * One received request.
+     *
+     * @param eventId the {@code Ledgerline-Event-Id} header, or null when missing
+     * @param duplicate this event id had already been accepted
+     * @param responseStatus what the sink answered
+     */
+<span class="fc" id="L41">    public record Delivery(</span>
+            Instant receivedAt,
+            String eventId,
+            String attempt,
+            String eventType,
+            boolean signatureValid,
+            boolean duplicate,
+            int responseStatus) {}
+
+    private final WebhookSignatureVerifier verifier;
+    private final Clock clock;
+    private final int capacity;
+<span class="fc" id="L53">    private final Deque&lt;Delivery&gt; deliveries = new ArrayDeque&lt;&gt;();</span>
+<span class="fc" id="L54">    private final Set&lt;String&gt; accepted = new HashSet&lt;&gt;();</span>
+<span class="fc" id="L55">    private volatile Mode mode = Mode.OK;</span>
+<span class="fc" id="L56">    private volatile Duration slowDelay = Duration.ofSeconds(5);</span>
+    /** When the current FAIL or SLOW mode ends; null means until changed. */
+    private volatile Instant modeUntil;
+
+<span class="fc" id="L60">    public MerchantSink(MerchantSinkProperties properties, Clock clock) {</span>
+<span class="fc bfc" id="L61" title="All 2 branches covered.">        if (properties.secrets().isEmpty()) {</span>
+<span class="fc" id="L62">            throw new IllegalStateException(&quot;ledgerline.merchant.sink.secrets is required when the sink is enabled&quot;);</span>
+        }
+<span class="fc" id="L64">        this.verifier = new WebhookSignatureVerifier(properties.secrets(), properties.tolerance());</span>
+<span class="fc" id="L65">        this.clock = clock;</span>
+<span class="fc" id="L66">        this.capacity = properties.capacity();</span>
+<span class="fc" id="L67">    }</span>
+
+    public Mode mode() {
+<span class="fc" id="L70">        Instant until = modeUntil;</span>
+<span class="fc bfc" id="L71" title="All 4 branches covered.">        if (until != null &amp;&amp; !clock.instant().isBefore(until)) {</span>
+<span class="fc" id="L72">            return Mode.OK;</span>
+        }
+<span class="fc" id="L74">        return mode;</span>
+    }
+
+    /** When the current FAIL or SLOW window ends, or null. */
+    public Instant modeUntil() {
+<span class="fc" id="L79">        return modeUntil;</span>
+    }
+
+    /** Answer 500 for {@code window}, then recover. */
+    public synchronized void failFor(Duration window) {
+<span class="fc" id="L84">        this.mode = Mode.FAIL;</span>
+<span class="fc" id="L85">        this.modeUntil = clock.instant().plus(window);</span>
+<span class="fc" id="L86">    }</span>
+
+    /** Answer after {@code delay} for {@code window}, then recover. */
+    public synchronized void slowFor(Duration delay, Duration window) {
+<span class="fc" id="L90">        this.slowDelay = Objects.requireNonNull(delay, &quot;delay&quot;);</span>
+<span class="fc" id="L91">        this.mode = Mode.SLOW;</span>
+<span class="fc" id="L92">        this.modeUntil = clock.instant().plus(window);</span>
+<span class="fc" id="L93">    }</span>
+
+    public Duration slowDelay() {
+<span class="fc" id="L96">        return slowDelay;</span>
+    }
+
+    public synchronized void setMode(Mode mode) {
+<span class="fc" id="L100">        this.mode = Objects.requireNonNull(mode, &quot;mode&quot;);</span>
+<span class="fc" id="L101">        this.modeUntil = null;</span>
+<span class="fc" id="L102">    }</span>
+
+    public void setSlowDelay(Duration delay) {
+<span class="fc" id="L105">        this.slowDelay = Objects.requireNonNull(delay, &quot;delay&quot;);</span>
+<span class="fc" id="L106">    }</span>
+
+    WebhookSignatureVerifier verifier() {
+<span class="fc" id="L109">        return verifier;</span>
+    }
+
+    Clock clock() {
+<span class="fc" id="L113">        return clock;</span>
+    }
+
+    /** Records a request; returns whether this event id was seen before (and accepted). */
+    synchronized boolean record(
+            String eventId, String attempt, String eventType, boolean signatureValid, int responseStatus) {
+<span class="pc bpc" id="L119" title="1 of 4 branches missed.">        boolean duplicate = eventId != null &amp;&amp; accepted.contains(eventId);</span>
+<span class="pc bpc" id="L120" title="1 of 6 branches missed.">        if (signatureValid &amp;&amp; responseStatus / 100 == 2 &amp;&amp; eventId != null) {</span>
+<span class="fc" id="L121">            accepted.add(eventId);</span>
+        }
+<span class="fc" id="L123">        deliveries.addLast(</span>
+<span class="fc" id="L124">                new Delivery(clock.instant(), eventId, attempt, eventType, signatureValid, duplicate, responseStatus));</span>
+<span class="fc bfc" id="L125" title="All 2 branches covered.">        while (deliveries.size() &gt; capacity) {</span>
+<span class="fc" id="L126">            deliveries.removeFirst();</span>
+        }
+<span class="fc" id="L128">        return duplicate;</span>
+    }
+
+    /** Newest first. */
+    public synchronized List&lt;Delivery&gt; deliveries() {
+<span class="fc" id="L133">        return List.copyOf(deliveries.reversed());</span>
+    }
+
+    public synchronized void reset() {
+<span class="fc" id="L137">        deliveries.clear();</span>
+<span class="fc" id="L138">        accepted.clear();</span>
+<span class="fc" id="L139">        mode = Mode.OK;</span>
+<span class="fc" id="L140">        slowDelay = Duration.ofSeconds(5);</span>
+<span class="fc" id="L141">        modeUntil = null;</span>
+<span class="fc" id="L142">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

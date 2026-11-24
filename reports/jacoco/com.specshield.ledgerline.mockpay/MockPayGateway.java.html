@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>MockPayGateway.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.mockpay</a> &gt; <span class="el_source">MockPayGateway.java</span></div><h1>MockPayGateway.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.mockpay;
+
+import com.specshield.ledgerline.application.PaymentGateway;
+import com.specshield.ledgerline.domain.Order;
+import com.specshield.ledgerline.domain.OrderStatus;
+import com.specshield.ledgerline.webhook.WebhookSigner;
+import jakarta.annotation.PreDestroy;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.HexFormat;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
+import java.util.random.RandomGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.core.env.Environment;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
+import tools.jackson.databind.json.JsonMapper;
+
+/**
+ * The simulated provider. {@link #startPayment} records the payment in MockPay's ledger and, once the caller's
+ * transaction commits, sends real signed HTTP webhooks from a virtual thread: PAYMENT_INITIATED at once (skipped
+ * when the order is retrying after PAYMENT_FAILED), then the outcome after a random 300-800 ms.
+ */
+@Component
+@ConditionalOnProperty(name = &quot;ledgerline.mockpay.enabled&quot;, havingValue = &quot;true&quot;)
+public class MockPayGateway implements PaymentGateway {
+
+<span class="fc" id="L40">    private static final Logger log = LoggerFactory.getLogger(MockPayGateway.class);</span>
+
+    private final MockPayProperties properties;
+    private final MockPayLedger ledger;
+    private final MockPayWebhookSender sender;
+    private final Environment environment;
+    private final Clock clock;
+    private final JsonMapper json;
+    private final RandomGenerator random;
+<span class="fc" id="L49">    private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();</span>
+    private final HttpClient http;
+
+    public MockPayGateway(
+<span class="fc" id="L53">            MockPayProperties properties, MockPayLedger ledger, Environment environment, Clock clock, JsonMapper json) {</span>
+<span class="fc" id="L54">        this.properties = properties;</span>
+<span class="fc" id="L55">        this.ledger = ledger;</span>
+<span class="fc" id="L56">        this.environment = environment;</span>
+<span class="fc" id="L57">        this.clock = clock;</span>
+<span class="fc" id="L58">        this.json = json;</span>
+        // Thread safe: concurrent payments must never get the same id (L64X128MixRandom is not).
+<span class="fc" id="L60">        this.random = new SecureRandom();</span>
+<span class="fc" id="L61">        this.http = HttpClient.newBuilder()</span>
+<span class="fc" id="L62">                .executor(executor)</span>
+<span class="fc" id="L63">                .connectTimeout(Duration.ofSeconds(5))</span>
+<span class="fc" id="L64">                .build();</span>
+<span class="fc" id="L65">        this.sender = new MockPayWebhookSender(</span>
+                http,
+<span class="fc" id="L67">                new WebhookSigner(properties.signingSecrets()),</span>
+                clock,
+<span class="fc" id="L69">                properties.maxDeliveryAttempts(),</span>
+<span class="fc" id="L70">                properties.retryBackoff());</span>
+<span class="fc" id="L71">    }</span>
+
+<span class="fc" id="L73">    record Event(String id, String type, long sequence) {}</span>
+
+    @Override
+    public String startPayment(Order order) {
+<span class="fc" id="L77">        String paymentId = &quot;mp_&quot; + randomHex(12);</span>
+<span class="fc" id="L78">        long sequence = ledger.lastSequence(order.id());</span>
+<span class="fc" id="L79">        List&lt;Event&gt; events = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L80" title="1 of 2 branches missed.">        if (order.status() == OrderStatus.CREATED) {</span>
+<span class="fc" id="L81">            events.add(new Event(&quot;evt_&quot; + randomHex(12), &quot;PAYMENT_INITIATED&quot;, ++sequence));</span>
+        }
+<span class="fc" id="L83">        events.add(new Event(&quot;evt_&quot; + randomHex(12), properties.defaultOutcome(), ++sequence));</span>
+<span class="fc" id="L84">        ledger.record(paymentId, order.id(), order.amountMinor(), order.currency(), sequence, clock.instant());</span>
+
+<span class="fc" id="L86">        Runnable dispatch = () -&gt; executor.submit(() -&gt; send(paymentId, order, events));</span>
+<span class="pc bpc" id="L87" title="1 of 2 branches missed.">        if (TransactionSynchronizationManager.isSynchronizationActive()) {</span>
+<span class="fc" id="L88">            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {</span>
+                @Override
+                public void afterCommit() {
+<span class="fc" id="L91">                    dispatch.run();</span>
+<span class="fc" id="L92">                }</span>
+            });
+        } else {
+<span class="nc" id="L95">            dispatch.run();</span>
+        }
+<span class="fc" id="L97">        log.info(&quot;MockPay payment {} started for order {} ({} event(s))&quot;, paymentId, order.id(), events.size());</span>
+<span class="fc" id="L98">        return paymentId;</span>
+    }
+
+    private void send(String paymentId, Order order, List&lt;Event&gt; events) {
+        try {
+<span class="fc" id="L103">            URI url = URI.create(environment.resolveRequiredPlaceholders(properties.webhookUrl()));</span>
+<span class="fc bfc" id="L104" title="All 2 branches covered.">            for (int i = 0; i &lt; events.size(); i++) {</span>
+<span class="fc" id="L105">                Event event = events.get(i);</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">                boolean outcome = i == events.size() - 1;</span>
+<span class="fc bfc" id="L107" title="All 2 branches covered.">                if (outcome) {</span>
+<span class="fc" id="L108">                    long min = properties.minDelay().toMillis();</span>
+<span class="fc" id="L109">                    long max = properties.maxDelay().toMillis();</span>
+<span class="pc bpc" id="L110" title="1 of 2 branches missed.">                    Thread.sleep(min + (max &gt; min ? random.nextLong(max - min + 1) : 0));</span>
+<span class="fc" id="L111">                    ledger.settle(</span>
+                            paymentId,
+<span class="pc bpc" id="L113" title="1 of 2 branches missed.">                            event.type().equals(&quot;PAYMENT_SUCCEEDED&quot;)</span>
+<span class="fc" id="L114">                                    ? MockPayLedger.Status.SUCCEEDED</span>
+<span class="pc" id="L115">                                    : MockPayLedger.Status.FAILED,</span>
+<span class="fc" id="L116">                            clock.instant());</span>
+                }
+<span class="fc" id="L118">                sender.deliver(url, event.id(), body(event, order));</span>
+            }
+<span class="nc" id="L120">        } catch (InterruptedException e) {</span>
+<span class="nc" id="L121">            Thread.currentThread().interrupt();</span>
+<span class="nc" id="L122">        } catch (RuntimeException e) {</span>
+<span class="nc" id="L123">            log.error(&quot;MockPay dispatch for payment {} failed&quot;, paymentId, e);</span>
+<span class="pc" id="L124">        }</span>
+<span class="fc" id="L125">    }</span>
+
+    private byte[] body(Event event, Order order) {
+<span class="fc" id="L128">        Map&lt;String, Object&gt; data = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L129">        data.put(&quot;orderId&quot;, order.id().toString());</span>
+<span class="fc" id="L130">        data.put(&quot;amountMinor&quot;, order.amountMinor());</span>
+<span class="fc" id="L131">        data.put(&quot;currency&quot;, order.currency());</span>
+<span class="fc" id="L132">        Map&lt;String, Object&gt; body = new LinkedHashMap&lt;&gt;();</span>
+<span class="fc" id="L133">        body.put(&quot;id&quot;, event.id());</span>
+<span class="fc" id="L134">        body.put(&quot;type&quot;, event.type());</span>
+<span class="fc" id="L135">        body.put(&quot;created&quot;, clock.instant().getEpochSecond());</span>
+<span class="fc" id="L136">        body.put(&quot;sequence&quot;, event.sequence());</span>
+<span class="fc" id="L137">        body.put(&quot;data&quot;, data);</span>
+<span class="fc" id="L138">        return json.writeValueAsBytes(body);</span>
+    }
+
+    private String randomHex(int bytes) {
+<span class="fc" id="L142">        byte[] b = new byte[bytes];</span>
+<span class="fc" id="L143">        random.nextBytes(b);</span>
+<span class="fc" id="L144">        return HexFormat.of().formatHex(b);</span>
+    }
+
+    @PreDestroy
+    void shutdown() throws InterruptedException {
+<span class="nc" id="L149">        executor.shutdown();</span>
+<span class="nc bnc" id="L150" title="All 2 branches missed.">        if (!executor.awaitTermination(5, TimeUnit.SECONDS)) {</span>
+<span class="nc" id="L151">            executor.shutdownNow();</span>
+        }
+<span class="nc" id="L153">        http.close();</span>
+<span class="nc" id="L154">    }</span>
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

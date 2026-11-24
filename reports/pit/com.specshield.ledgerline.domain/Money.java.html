@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8">
+    <link rel="stylesheet" type="text/css" href="../style.css">
+</head>
+<body>
+
+
+<h1>Money.java</h1>
+
+<table class="src">
+
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_1'/>
+1
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_1'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>package com.specshield.ledgerline.domain;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_2'/>
+2
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_2'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_3'/>
+3
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_3'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>/**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_4'/>
+4
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_4'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * An amount of money in minor units (cents) together with its ISO 4217 currency.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_5'/>
+5
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_5'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> *</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_6'/>
+6
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_6'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * &#60;p&#62;Ledgerline supports {@code &#34;USD&#34;} only. Amounts are never negative. Arithmetic is overflow safe: it throws</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_7'/>
+7
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_7'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> * {@link ArithmeticException} instead of wrapping around.</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_8'/>
+8
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_8'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''> */</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_9'/>
+9
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_9'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>public record Money(long amountMinor, String currency) implements Comparable&#60;Money&#62; {</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_10'/>
+10
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_10'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_11'/>
+11
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_11'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static final String USD = &#34;USD&#34;;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_12'/>
+12
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_12'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_13'/>
+13
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_13'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    public Money {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_14'/>
+14
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_14'>1</a>
+<span>
+1. &#60;init&#62; : removed call to com/specshield/ledgerline/domain/Money::requireSupportedCurrency &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        requireSupportedCurrency(currency);</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_15'/>
+15
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_15'>2</a>
+<span>
+1. &#60;init&#62; : negated conditional &rarr; KILLED<br/>
+2. &#60;init&#62; : changed conditional boundary &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (amountMinor &#60; 0) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_16'/>
+16
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_16'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;amountMinor must not be negative, was &#34; + amountMinor);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_17'/>
+17
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_17'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_18'/>
+18
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_18'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_19'/>
+19
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_19'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_20'/>
+20
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_20'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static Money usd(long amountMinor) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_21'/>
+21
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_21'>1</a>
+<span>
+1. usd : replaced return value with null for com/specshield/ledgerline/domain/Money::usd &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Money(amountMinor, USD);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_22'/>
+22
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_22'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_23'/>
+23
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_23'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_24'/>
+24
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_24'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static Money zero() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_25'/>
+25
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_25'>1</a>
+<span>
+1. zero : replaced return value with null for com/specshield/ledgerline/domain/Money::zero &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return usd(0);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_26'/>
+26
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_26'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_27'/>
+27
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_27'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_28'/>
+28
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_28'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** Throws {@link IllegalArgumentException} unless {@code currency} is exactly {@code &#34;USD&#34;}. */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_29'/>
+29
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_29'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public static void requireSupportedCurrency(String currency) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_30'/>
+30
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_30'>1</a>
+<span>
+1. requireSupportedCurrency : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (!USD.equals(currency)) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_31'/>
+31
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_31'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;currency must be &#34; + USD + &#34;, was &#34; + currency);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_32'/>
+32
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_32'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_33'/>
+33
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_33'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_34'/>
+34
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_34'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_35'/>
+35
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_35'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /** @throws ArithmeticException if the sum overflows {@code long} */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_36'/>
+36
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_36'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public Money plus(Money other) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_37'/>
+37
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_37'>1</a>
+<span>
+1. plus : replaced return value with null for com/specshield/ledgerline/domain/Money::plus &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Money(Math.addExact(amountMinor, sameCurrency(other).amountMinor), currency);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_38'/>
+38
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_38'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_39'/>
+39
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_39'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_40'/>
+40
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_40'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    /**</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_41'/>
+41
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_41'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * @throws ArithmeticException if the difference overflows {@code long}</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_42'/>
+42
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_42'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     * @throws IllegalArgumentException if the result would be negative</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_43'/>
+43
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_43'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>     */</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_44'/>
+44
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_44'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public Money minus(Money other) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_45'/>
+45
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_45'>1</a>
+<span>
+1. minus : replaced return value with null for com/specshield/ledgerline/domain/Money::minus &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return new Money(Math.subtractExact(amountMinor, sameCurrency(other).amountMinor), currency);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_46'/>
+46
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_46'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_47'/>
+47
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_47'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_48'/>
+48
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_48'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public boolean isZero() {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_49'/>
+49
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_49'>2</a>
+<span>
+1. isZero : negated conditional &rarr; KILLED<br/>
+2. isZero : replaced boolean return with true for com/specshield/ledgerline/domain/Money::isZero &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return amountMinor == 0;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_50'/>
+50
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_50'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_51'/>
+51
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_51'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_52'/>
+52
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_52'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public boolean isGreaterThan(Money other) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_53'/>
+53
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_53'>3</a>
+<span>
+1. isGreaterThan : negated conditional &rarr; KILLED<br/>
+2. isGreaterThan : replaced boolean return with true for com/specshield/ledgerline/domain/Money::isGreaterThan &rarr; KILLED<br/>
+3. isGreaterThan : changed conditional boundary &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return compareTo(other) &#62; 0;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_54'/>
+54
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_54'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_55'/>
+55
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_55'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_56'/>
+56
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_56'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    @Override</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_57'/>
+57
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_57'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    public int compareTo(Money other) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_58'/>
+58
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_58'>1</a>
+<span>
+1. compareTo : replaced int return with 0 for com/specshield/ledgerline/domain/Money::compareTo &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return Long.compare(amountMinor, sameCurrency(other).amountMinor);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_59'/>
+59
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_59'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_60'/>
+60
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_60'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''></span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_61'/>
+61
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_61'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    private Money sameCurrency(Money other) {</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_62'/>
+62
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_62'>1</a>
+<span>
+1. sameCurrency : negated conditional &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        if (!currency.equals(other.currency)) {</span></pre></td></tr>
+
+<tr>
+<td class='uncovered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_63'/>
+63
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_63'></a>
+<span>
+</span>
+</span>
+</td>
+<td class='uncovered'><pre><span  class=''>            throw new IllegalArgumentException(&#34;currency mismatch: &#34; + currency + &#34; vs &#34; + other.currency);</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_64'/>
+64
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_64'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>        }</span></pre></td></tr>
+
+<tr>
+<td class='covered'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_65'/>
+65
+</td>
+<td class='killed'>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_65'>1</a>
+<span>
+1. sameCurrency : replaced return value with null for com/specshield/ledgerline/domain/Money::sameCurrency &rarr; KILLED<br/>
+
+</span>
+</span>
+</td>
+<td class='covered'><pre><span  class='killed'>        return other;</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_66'/>
+66
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_66'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>    }</span></pre></td></tr>
+
+<tr>
+<td class='na'>
+<a name='org.pitest.mutationtest.report.html.SourceFile@1ea17af2_67'/>
+67
+</td>
+<td class=''>
+<span class='pop'>
+<a href='#grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_67'></a>
+<span>
+</span>
+</span>
+</td>
+<td class=''><pre><span  class=''>}</span></pre></td></tr>
+
+
+
+<tr><td></td><td></td><td><h2>Mutations</h2></td></tr>
+
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_14'>14</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_14'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:validation()]</span></span> removed call to com/specshield/ledgerline/domain/Money::requireSupportedCurrency &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_15'>15</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_15'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:overflow()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>&#60;init&#62;<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:validation()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_21'>21</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_21'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>usd<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:overflow()]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Money::usd &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_25'>25</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_25'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>zero<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:validation()]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Money::zero &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_30'>30</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_30'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>requireSupportedCurrency<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:overflow()]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_37'>37</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_37'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>plus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:arithmetic()]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Money::plus &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_45'>45</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_45'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>minus<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:arithmetic()]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Money::minus &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_49'>49</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_49'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isZero<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:validation()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isZero<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:validation()]</span></span> replaced boolean return with true for com/specshield/ledgerline/domain/Money::isZero &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_53'>53</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_53'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>isGreaterThan<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:arithmetic()]</span></span> negated conditional &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>2.<span><b>2</b><br/><b>Location : </b>isGreaterThan<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:arithmetic()]</span></span> replaced boolean return with true for com/specshield/ledgerline/domain/Money::isGreaterThan &rarr; KILLED</span>
+</div> <p class='KILLED'><span class='pop'>3.<span><b>3</b><br/><b>Location : </b>isGreaterThan<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:arithmetic()]</span></span> changed conditional boundary &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_58'>58</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_58'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>compareTo<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:arithmetic()]</span></span> replaced int return with 0 for com/specshield/ledgerline/domain/Money::compareTo &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_62'>62</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_62'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>sameCurrency<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:overflow()]</span></span> negated conditional &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+<tr>
+<td><a href='#org.pitest.mutationtest.report.html.SourceFile@1ea17af2_65'>65</a></td> 
+<td></td>
+<td>
+
+<a name='grouporg.pitest.mutationtest.report.html.SourceFile@1ea17af2_65'/> 
+
+<p class='KILLED'><span class='pop'>1.<span><b>1</b><br/><b>Location : </b>sameCurrency<br/><b>Killed by : </b>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:overflow()]</span></span> replaced return value with null for com/specshield/ledgerline/domain/Money::sameCurrency &rarr; KILLED</span>
+</div> 
+</td>
+</tr>
+
+</table>
+
+
+<h2>Active mutators</h2>
+<ul>
+<li class='mutator'>CONDITIONALS_BOUNDARY</li>
+<li class='mutator'>EMPTY_RETURNS</li>
+<li class='mutator'>FALSE_RETURNS</li>
+<li class='mutator'>INCREMENTS</li>
+<li class='mutator'>INVERT_NEGS</li>
+<li class='mutator'>MATH</li>
+<li class='mutator'>NEGATE_CONDITIONALS</li>
+<li class='mutator'>NULL_RETURNS</li>
+<li class='mutator'>PRIMITIVE_RETURNS</li>
+<li class='mutator'>TRUE_RETURNS</li>
+<li class='mutator'>VOID_METHOD_CALLS</li>
+
+</ul>
+
+<h2>Tests examined</h2>
+<ul>
+<li>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:validation()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:partialThenFullRefund()] (1 ms)</li><li>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:overflow()] (0 ms)</li><li>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:negativeResult()] (0 ms)</li><li>com.specshield.ledgerline.domain.MoneyTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.MoneyTest]/[method:arithmetic()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#4] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#8] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#12] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#24] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:fullRefundFromPaid()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#20] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#16] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:illegalEventBlocks()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:gapWaits()] (0 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:failed()] (26 ms)</li><li>com.specshield.ledgerline.domain.EventReplayPropertyTest.[engine:jqwik]/[class:com.specshield.ledgerline.domain.EventReplayPropertyTest]/[property:naiveApplicationLosesOutOfOrderRefund()] (99 ms)</li><li>com.specshield.ledgerline.domain.EventReplayPropertyTest.[engine:jqwik]/[class:com.specshield.ledgerline.domain.EventReplayPropertyTest]/[property:duplicatedAndShuffledDeliveryConverges(com.specshield.ledgerline.domain.EventReplayPropertyTest$Scenario)] (622 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#2] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:boundaryAmounts(long)]/[test-template-invocation:#1] (4 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#4] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#2] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:nullCurrency()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#3] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[test-template:invalidCurrency(java.lang.String)]/[test-template-invocation:#1] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:appliedConsistency()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:merchantRef()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:instantsTruncatedToMicros()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelCreated()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:refundedConsistency()] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderValidationTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderValidationTest]/[method:otherFields()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:eventForAnotherOrder()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:staleWinsOverIllegal()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelOtherStatesThrows()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:cancelledIgnoresEvents()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#26] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#28] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#25] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:foreignEvent()] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#27] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#19] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#23] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:staleEventsDoNotChangeState()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:pendingToPaid()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#5] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#9] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#13] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#17] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#21] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:requirePayable()] (3 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#14] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#18] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#3] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#11] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:failedThenRetrySucceeds()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#6] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#10] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineTest]/[method:createdToPending()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#2] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#15] (4 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#22] (3 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#7] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:cancelledIgnoresEverything()] (1 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:duplicatesInBatch()] (0 ms)</li><li>com.specshield.ledgerline.application.SmallServicesTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.SmallServicesTest]/[method:notifications()] (2 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:appliesInSequenceOrder()] (0 ms)</li><li>com.specshield.ledgerline.domain.OrderEventSequencerTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderEventSequencerTest]/[method:staleSequences()] (0 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:create()] (5 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:reject()] (6 ms)</li><li>com.specshield.ledgerline.domain.OrderStateMachineMatrixTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.domain.OrderStateMachineMatrixTest]/[test-template:transitionMatrix(com.specshield.ledgerline.domain.OrderStateMachineMatrixTest$Case)]/[test-template-invocation:#1] (2 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:pay()] (4 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:timelineAndDeliveries()] (6 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:ignoredAndOrphan()] (4 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:duplicate()] (2 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:orphans()] (3 ms)</li><li>com.specshield.ledgerline.application.OrderServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.OrderServiceTest]/[method:cancel()] (28 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:stale()] (4 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:gap()] (5 ms)</li><li>com.specshield.ledgerline.application.PaymentEventServiceTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.PaymentEventServiceTest]/[method:applies()] (6 ms)</li><li>com.specshield.ledgerline.application.SmallServicesTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.SmallServicesTest]/[method:reconciliation()] (42 ms)</li><li>com.specshield.ledgerline.application.SmallServicesTest.[engine:junit-jupiter]/[class:com.specshield.ledgerline.application.SmallServicesTest]/[method:demoData()] (71 ms)</li>
+</ul>
+
+<br/>
+
+Report generated by <a href='https://pitest.org'>PIT</a> 1.30.2 <a href='https://github.com/sponsors/hcoles'>support</a>
+
+</body>
+</html>
