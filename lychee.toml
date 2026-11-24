@@ -25,7 +25,4 @@ exclude = [
   '^https?://127\.0\.0\.1',
   # Reserved example domain (RFC 2606) used for placeholder addresses.
   'specshield\.example',
-  # Created by the release workflow when a tag is pushed, so absent until the first release exists.
-  '^https://github\.com/specshield-io/ledgerline/releases/tag/',
-  '^https://github\.com/specshield-io/ledgerline/compare/',
 ]
