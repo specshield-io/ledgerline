@@ -59,9 +59,9 @@ public final class WebhookSignatureVerifier {
         if (Math.abs(ageSeconds) > tolerance.toSeconds()) {
             throw new InvalidSignatureException(Reason.TIMESTAMP_OUT_OF_TOLERANCE);
         }
-        byte[] signedPayload = signedPayload(parsed.timestamp(), body);
+        byte[] prefix = signedPrefix(parsed.timestamp());
         for (SecretKeySpec key : keys) {
-            byte[] expected = hmac(key, signedPayload);
+            byte[] expected = hmac(key, prefix, body);
             for (byte[] candidate : parsed.signatures()) {
                 if (MessageDigest.isEqual(expected, candidate)) {
                     return;
@@ -114,19 +114,21 @@ public final class WebhookSignatureVerifier {
         return new ParsedHeader(timestamp, signatures);
     }
 
-    static byte[] signedPayload(long timestamp, byte[] body) {
-        byte[] prefix = (timestamp + ".").getBytes(StandardCharsets.US_ASCII);
-        byte[] payload = new byte[prefix.length + body.length];
-        System.arraycopy(prefix, 0, payload, 0, prefix.length);
-        System.arraycopy(body, 0, payload, prefix.length, body.length);
-        return payload;
+    /** The {@code TIMESTAMP + "."} that precedes the raw body in the signed payload. */
+    static byte[] signedPrefix(long timestamp) {
+        return (timestamp + ".").getBytes(StandardCharsets.US_ASCII);
     }
 
-    private static byte[] hmac(SecretKeySpec key, byte[] payload) {
+    /**
+     * HMAC of {@code prefix + body}, fed to the MAC in two parts: the body is never copied and no length is computed
+     * from it, so a large or hostile body cannot overflow a buffer size.
+     */
+    private static byte[] hmac(SecretKeySpec key, byte[] prefix, byte[] body) {
         try {
             Mac mac = Mac.getInstance(ALGORITHM);
             mac.init(key);
-            return mac.doFinal(payload);
+            mac.update(prefix);
+            return mac.doFinal(body);
         } catch (NoSuchAlgorithmException | InvalidKeyException e) {
             throw new IllegalStateException("HmacSHA256 unavailable", e);
         }
