@@ -1,0 +1,41 @@
+name: Mutation testing
+
+# LL-N02: PIT on domain, webhook, outbox and application; fails below a 70 % mutation score. Nightly and on demand.
+# (The evidence job on main also runs it, for the commit it reports on.)
+on:
+  schedule:
+    - cron: "17 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mutation:
+    name: mutation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: PIT (fails below 70 %)
+        run: ./mvnw -B -ntp -Pmutation -Dskip.frontend test-compile pitest:mutationCoverage
+
+      - name: Upload PIT report
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: pit-report
+          path: ledgerline-api/target/pit-reports/
+          if-no-files-found: warn
+          retention-days: 30

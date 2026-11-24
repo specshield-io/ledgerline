@@ -1,10 +1,12 @@
 # Ledgerline
 
-<!-- Badges. CI and licence are live once the repository is public; the rest are placeholders until those jobs exist. -->
+<!-- Badges: live. Tests, coverage and mutation score are read from the evidence file CI publishes on every push to main. -->
 [![CI](https://github.com/specshield-io/ledgerline/actions/workflows/ci.yml/badge.svg)](https://github.com/specshield-io/ledgerline/actions/workflows/ci.yml)
-![Coverage](https://img.shields.io/badge/coverage-pending-lightgrey)
-![CodeQL](https://img.shields.io/badge/CodeQL-pending-lightgrey)
-![OpenSSF Scorecard](https://img.shields.io/badge/OpenSSF%20Scorecard-pending-lightgrey)
+[![Tests](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fspecshield-io.github.io%2Fledgerline%2Fevidence%2Flatest.json&query=%24.tests.total&label=tests)](https://specshield-io.github.io/ledgerline/evidence/latest.json)
+[![Coverage](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fspecshield-io.github.io%2Fledgerline%2Fevidence%2Flatest.json&query=%24.coverage.line&label=line%20coverage&suffix=%25)](https://specshield-io.github.io/ledgerline/reports/jacoco/)
+[![Mutation score](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fspecshield-io.github.io%2Fledgerline%2Fevidence%2Flatest.json&query=%24.mutation.score&label=mutation%20score&suffix=%25)](https://specshield-io.github.io/ledgerline/reports/pit/)
+[![CodeQL](https://github.com/specshield-io/ledgerline/actions/workflows/codeql.yml/badge.svg)](https://github.com/specshield-io/ledgerline/actions/workflows/codeql.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/specshield-io/ledgerline/badge)](https://scorecard.dev/viewer/?uri=github.com/specshield-io/ledgerline)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
 
 > [!IMPORTANT]
@@ -30,7 +32,9 @@ retries and failure handling under chaos.
 | Observability | Actuator `health`, `info`, `prometheus` |
 | Console | React 19, TypeScript (strict), Vite 8, TanStack Query, React Router, Tailwind CSS 4, Radix UI, lucide |
 | Tests | JUnit 6, Testcontainers 2, ArchUnit, jqwik, WireMock, REST Assured; Vitest, Testing Library, MSW, Playwright, axe |
-| Quality | JaCoCo (gated), PIT (not gated yet), Spotless (palantir-java-format), CycloneDX SBOM |
+| Quality | JaCoCo and PIT (both gated), Spotless, CodeQL, OpenSSF Scorecard, Trivy, OWASP ZAP, CycloneDX SBOM |
+| Observability | Micrometer Observation, OpenTelemetry tracing (OTLP export when configured), ECS JSON logs in `prod` |
+| Load testing | k6 |
 
 ## Getting started
 
@@ -293,14 +297,71 @@ problem+json.
   separated CIDRs of the Fly.io or Cloudflare proxies in front of the app), and is then read from the right. Unset,
   the header is ignored. The proxy ranges for a given deployment must be configured there; none are built in.
 - **Headers** on every response: `Strict-Transport-Security: max-age=31536000; includeSubDomains`,
-  `X-Content-Type-Options: nosniff`, `Content-Security-Policy: frame-ancestors 'none'`, `X-Frame-Options: DENY`,
-  `Referrer-Policy: strict-origin-when-cross-origin`.
+  `X-Content-Type-Options: nosniff`, a `Content-Security-Policy` allowing only this origin (scripts, styles, images,
+  API calls) with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
+  `Permissions-Policy` (camera, microphone, geolocation, payment, usb off) and `Cross-Origin-Opener-Policy: same-origin`.
 - **CORS**: `/api/**` from `https://www.specshield.example` (plus `http://localhost:5173` and `:3000` in `local`),
   methods GET and POST, no credentials.
 - **CSRF** protection is off only for `/api/**`, `/webhooks/**` and the demo merchant: they use no cookies or sessions,
   and every state-changing API call needs the `Idempotency-Key` header, which a browser cannot send cross-origin
   without a CORS preflight.
 - **Request bodies** are at most 64 KiB (`413`, also for chunked bodies) and must be JSON (`415`).
+
+## Evidence and quality gates
+
+Every number about this project is produced by a CI run, never typed in. On each push to `main` the `evidence` job
+writes **[evidence/latest.json](https://specshield-io.github.io/ledgerline/evidence/latest.json)** to GitHub Pages,
+next to the [Playwright](https://specshield-io.github.io/ledgerline/reports/playwright/),
+[JaCoCo](https://specshield-io.github.io/ledgerline/reports/jacoco/) and
+[PIT](https://specshield-io.github.io/ledgerline/reports/pit/) reports and the
+[SBOM](https://specshield-io.github.io/ledgerline/evidence/bom.json):
+
+```json
+{"repo": "...", "gitSha": "...", "builtAt": "...",
+ "tests": {"unit": 0, "integration": 0, "e2e": 0, "total": 0, "failed": 0},
+ "coverage": {"line": 0.0, "domain": 0.0}, "mutation": {"score": 0.0},
+ "load": {"p95ms": 0.0, "rps": 0.0, "errors": 0, "environment": "GitHub-hosted runner (...), N vCPU, docker compose"},
+ "scans": {"codeql": "pass|fail", "trivyCritical": 0, "zapHigh": 0}, "sbomUrl": "..."}
+```
+
+(Shape only; the zeros are placeholders.) `evidence/assemble.mjs` parses surefire/failsafe and Playwright JUnit
+XML, `jacoco.xml`, PIT's `mutations.xml`, the k6 summary and the Trivy and ZAP JSON reports. A value it cannot
+measure is `null` ("not measured"), never a default; LL-N08 tests this with fixture reports. Test counts, coverage,
+mutation score and the Trivy count come from the same commit; load, ZAP and CodeQL from their latest scheduled or
+manual run on `main` (linked under `sources`).
+
+| Gate | ID | When | Fails when |
+|---|---|---|---|
+| Unit + integration tests, coverage | LL-N03 | every push and PR | any test fails; line coverage below 90 % overall or 90 % in `domain` (JaCoCo) |
+| Mutation testing (PIT, unit tests) | LL-N02 | nightly, on demand, every push to `main` | mutation score below 70 % on `domain`, `webhook`, `outbox`, `application` |
+| Load test (k6, 200 webhooks/s, 20 % duplicates) | LL-N01 | on demand (`load-test.yml`) | failed requests ≥ 0.1 %, p95 ≥ 150 ms, or an event applied twice |
+| OWASP ZAP baseline | LL-N04 | weekly, on demand | any High alert (accepted findings: `.zap/rules.tsv`) |
+| Trivy image scan | LL-N05 | every push and PR | any CRITICAL vulnerability |
+| CodeQL (Java, TypeScript) | | every push, PR, weekly | GitHub code scanning alerts |
+| OpenSSF Scorecard | | push to `main`, weekly | (score published, badge above) |
+
+The CycloneDX SBOM is attached as `bom.json` to every GitHub release (`release-sbom.yml`).
+
+Run them locally:
+
+```bash
+./mvnw verify                                               # tests + JaCoCo gate
+./mvnw -Pmutation -Dskip.frontend test-compile pitest:mutationCoverage   # PIT, report in ledgerline-api/target/pit-reports
+docker compose -f docker-compose.yml -f docker-compose.perf.yml up --build --wait && perf/run.sh   # k6 + DB check
+node --test evidence/assemble.test.mjs                      # LL-N08
+```
+
+## Observability
+
+- **Tracing**: Micrometer Observation with the OpenTelemetry bridge (`spring-boot-starter-opentelemetry`). Custom
+  spans `webhook.verify`, `webhook.process` and `outbox.deliver` (also timers of the same name in Prometheus), on top
+  of HTTP server and JDBC observations. Set `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS`, for
+  example for Grafana Cloud) to export spans and metrics over OTLP/HTTP; unset, nothing is exported. Every request is
+  sampled (`management.tracing.sampling.probability`).
+- **Logs**: in `prod`, one JSON object per line in Elastic Common Schema, with `correlationId` (the `X-Request-Id`),
+  `traceId`, `spanId` and, where an order is involved, `orderId`. Other profiles log text with
+  `[correlationId] [traceId]` on every line.
+- **Metrics**: `/actuator/prometheus` (VIEWER or ADMIN), and `GET /api/v1/stats` for the console.
 
 ## Domain model
 
@@ -337,7 +398,7 @@ shuffled, and checks it reaches the same final status and refunded amount as the
 
 ## Database schema
 
-Flyway `V1__init.sql` to `V5__shedlock.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
+Flyway `V1__init.sql` to `V6__outbox_by_order.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
 `provider, provider_event_id`; `order_id` for the timeline), `audit_log`, `idempotency_keys` (raw response bytes
 for exact replay), `mockpay_ledger` (the simulator's own record), `outbox` (partial index on `next_attempt_at` where `status = 'PENDING'`; `claimed_at` set only while
 `IN_FLIGHT`), `shedlock` (the lock that keeps the demo reset from running twice at once).
@@ -348,6 +409,8 @@ with status). Hibernate only validates the schema.
 
 ```
 ledgerline-api/   Spring Boot service
+perf/             k6 load test (LL-N01) and its database check
+evidence/         evidence/latest.json assembler (LL-N08) and GitHub Pages publisher
 ops-console/      React operations console, built into the jar (see ops-console/README.md)
 ```
 

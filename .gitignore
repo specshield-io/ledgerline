@@ -47,3 +47,4 @@ ops-console/coverage/
 ops-console/test-results/
 ops-console/playwright-report/
 ops-console/blob-report/
+ops-console/results/

@@ -10,5 +10,8 @@ ops-console/dist/
 ops-console/test-results/
 ops-console/playwright-report/
 ops-console/e2e/
+ops-console/results/
+perf/
+evidence/
 .env
 .env.*

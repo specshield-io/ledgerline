@@ -122,7 +122,9 @@ new error kind; never reuse one for a different meaning, because clients branch 
 - Tests that depend on time use an injected `Clock`, never sleeps or wall-clock assertions.
 - Coverage is gated by JaCoCo (line coverage, see `jacoco.line.minimum` in `ledgerline-api/pom.xml`).
   Raise the gate as code lands; never lower it to get a build through.
-- Mutation testing (PIT) is configured but not gated yet.
+- Mutation testing (PIT) is gated at 70 % on `domain`, `webhook`, `outbox` and `application` (LL-N02), with unit
+  tests only. New logic in those packages needs unit tests that would catch a changed condition or return value, not
+  only integration tests.
 
 ### ops-console
 
@@ -140,6 +142,15 @@ new error kind; never reuse one for a different meaning, because clients branch 
 - Use Node 22.23.4 and npm 11.21.2 (the Maven build downloads them into `ops-console/node`; `PATH=$PWD/node:$PATH`).
   npm 10 cannot resolve this dependency tree.
 
+### Evidence and observability
+
+- `evidence/latest.json` is assembled by CI from reports (`evidence/assemble.mjs`). Never add a number to it, to the
+  README or to a PR that a report did not produce; a missing measurement is `null` and stays visible as such.
+- Spans: name custom observations `<area>.<action>` (`webhook.verify`, `outbox.deliver`); low-cardinality tags only
+  for values with a small fixed set (outcome, event type), ids as high-cardinality tags.
+- Logs: put `orderId` in the MDC where an order is known (it reaches the prod JSON logs); never log secrets,
+  signatures or request bodies.
+
 ## 6. Commands
 
 Requires JDK 25 (`JAVA_HOME` must point at it) and Docker (for Testcontainers and Compose).
@@ -147,7 +158,6 @@ Requires JDK 25 (`JAVA_HOME` must point at it) and Docker (for Testcontainers an
 | Command | What it does |
 |---|---|
 | `./mvnw verify` | Compile, format check (Spotless), unit + integration tests, coverage report + gate, SBOM |
-| `./mvnw -Pmutation test-compile pitest:mutationCoverage` | Mutation testing; report at `ledgerline-api/target/pit-reports/index.html` |
 | `./mvnw spotless:apply` | Format the code (palantir-java-format) |
 | `docker compose up --build` | Start PostgreSQL 17 and the app (API + console) on http://localhost:8080 |
 | `./mvnw verify -Dskip.frontend` | Backend only, without building ops-console |
@@ -155,6 +165,9 @@ Requires JDK 25 (`JAVA_HOME` must point at it) and Docker (for Testcontainers an
 | `cd ops-console && npm run lint && npm run typecheck && npm test && npm run build` | Console checks (as CI) |
 | `cd ops-console && npx playwright test` | E2E against a running stack (`E2E_BASE_URL`, default http://localhost:8080) |
 | `ops-console/scripts/e2e-docker.sh` | The same E2E suite in the pinned Linux Playwright image, as CI runs it |
+| `./mvnw -Pmutation -Dskip.frontend test-compile pitest:mutationCoverage` | PIT, fails below 70 % (LL-N02) |
+| `perf/run.sh` | k6 load test + database check (LL-N01); stack up with `docker-compose.perf.yml` first |
+| `node --test evidence/assemble.test.mjs` | Evidence assembler tests (LL-N08) |
 
 Docker notes: with Colima, export `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and
 `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before `./mvnw verify`. Compose host ports

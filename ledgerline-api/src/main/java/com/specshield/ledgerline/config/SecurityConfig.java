@@ -26,7 +26,9 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.provisioning.InMemoryUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.header.writers.CrossOriginOpenerPolicyHeaderWriter;
 import org.springframework.security.web.header.writers.ReferrerPolicyHeaderWriter.ReferrerPolicy;
+import org.springframework.security.web.header.writers.StaticHeadersWriter;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
@@ -57,6 +59,18 @@ import org.springframework.web.filter.CorsFilter;
 public class SecurityConfig {
 
     static final String REALM = "ledgerline";
+
+    /**
+     * Only this origin may supply scripts, styles, images and API calls; nothing may frame the pages. Inline styles are
+     * allowed (Radix UI and Swagger UI set element styles); inline scripts are not (the console has none).
+     */
+    public static final String CONTENT_SECURITY_POLICY =
+            "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+                    + " img-src 'self' data:; font-src 'self'; connect-src 'self'; object-src 'none'; base-uri 'self';"
+                    + " form-action 'self'; frame-ancestors 'none'";
+
+    /** No page needs these browser features. */
+    public static final String PERMISSIONS_POLICY = "camera=(), microphone=(), geolocation=(), payment=(), usb=()";
 
     @Bean
     SecurityFilterChain securityFilterChain(
@@ -102,7 +116,10 @@ public class SecurityConfig {
                                 .maxAgeInSeconds(31_536_000))
                         .contentTypeOptions(options -> {})
                         .frameOptions(frame -> frame.deny())
-                        .contentSecurityPolicy(csp -> csp.policyDirectives("frame-ancestors 'none'"))
+                        .contentSecurityPolicy(csp -> csp.policyDirectives(CONTENT_SECURITY_POLICY))
+                        .crossOriginOpenerPolicy(coop ->
+                                coop.policy(CrossOriginOpenerPolicyHeaderWriter.CrossOriginOpenerPolicy.SAME_ORIGIN))
+                        .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", PERMISSIONS_POLICY))
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)))
                 .exceptionHandling(
                         ex -> ex.authenticationEntryPoint((request, response, e) -> denied(problems, request, response))

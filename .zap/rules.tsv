@@ -1,0 +1,4 @@
+10027	IGNORE	(Information Disclosure - Suspicious Comments: words like "debug" in the minified third-party console bundle; no secrets)
+10049	IGNORE	(Non-Storable Content: API responses are Cache-Control no-store on purpose)
+10109	IGNORE	(Modern Web Application: informational, the console is a single-page app)
+90004	IGNORE	(Cross-Origin-Embedder-Policy missing: Low; the pages embed no cross-origin resources, COOP same-origin is set)

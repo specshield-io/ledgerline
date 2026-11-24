@@ -99,6 +99,12 @@
             <artifactId>postgresql</artifactId>
             <scope>runtime</scope>
         </dependency>
+        <!-- Boot 4's OpenTelemetry starter: Micrometer Observation -> OTel tracing bridge, OTLP span and metric
+             export. Export is configured only when OTEL_EXPORTER_OTLP_ENDPOINT is set (config.OtlpEnvironment). -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry</artifactId>
+        </dependency>
         <dependency>
             <groupId>io.micrometer</groupId>
             <artifactId>micrometer-registry-prometheus</artifactId>
@@ -143,6 +149,11 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-data-jpa-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-opentelemetry-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -446,8 +457,9 @@
 
     <profiles>
         <!--
-          Mutation testing. Configured, not gated yet (no mutationThreshold).
-          Run: ./mvnw -Pmutation test-compile pitest:mutationCoverage
+          LL-N02 mutation testing, gated at 70 % on domain, webhook, outbox and application. Unit tests only:
+          integration tests are too slow and order-dependent to rerun per mutant.
+          Run: ./mvnw -Pmutation -Dskip.frontend test-compile pitest:mutationCoverage
           Report: ledgerline-api/target/pit-reports/index.html
         -->
         <profile>
@@ -466,8 +478,12 @@
                             </dependency>
                         </dependencies>
                         <configuration>
+                            <!-- LL-N02 scope: the packages that hold the reliability logic. -->
                             <targetClasses>
-                                <param>com.specshield.ledgerline.*</param>
+                                <param>com.specshield.ledgerline.domain.*</param>
+                                <param>com.specshield.ledgerline.webhook.*</param>
+                                <param>com.specshield.ledgerline.outbox.*</param>
+                                <param>com.specshield.ledgerline.application.*</param>
                             </targetClasses>
                             <targetTests>
                                 <param>com.specshield.ledgerline.*Test</param>
@@ -478,6 +494,13 @@
                             <excludedTestClasses>
                                 <param>com.specshield.ledgerline.*IT</param>
                             </excludedTestClasses>
+                            <threads>4</threads>
+                            <!-- LL-N02: fail below 70 % of mutants detected. -->
+                            <mutationThreshold>70</mutationThreshold>
+                            <!-- Mockito attaches its agent at run time in PIT's test JVMs. -->
+                            <jvmArgs>
+                                <jvmArg>-XX:+EnableDynamicAgentLoading</jvmArg>
+                            </jvmArgs>
                             <outputFormats>
                                 <format>HTML</format>
                                 <format>XML</format>

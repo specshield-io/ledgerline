@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuite xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" name="com.example.ATest" time="0.5" tests="10" errors="0" skipped="1" failures="0">
+  <testcase name="a" classname="com.example.ATest" time="0.1"/>
+</testsuite>

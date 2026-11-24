@@ -77,7 +77,9 @@ class StatsAndConsoleIT extends ApiTestSupport {
             assertThat(page.statusCode()).as(path).isEqualTo(200);
             assertThat(page.contentType()).startsWith("text/html");
             assertThat(page.asString()).contains("<div id=\"root\"></div>");
-            assertThat(page.header("Content-Security-Policy")).isEqualTo("frame-ancestors 'none'");
+            assertThat(page.header("Content-Security-Policy"))
+                    .contains("frame-ancestors 'none'")
+                    .contains("script-src 'self'");
             assertThat(page.header("X-Content-Type-Options")).isEqualTo("nosniff");
         }
         String script = given().get("/").asString().replaceAll("(?s).*src=\"(/assets/[^\"]+\\.js)\".*", "$1");

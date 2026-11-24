@@ -16,7 +16,8 @@ export default defineConfig({
     timeout: 10_000,
     toHaveScreenshot: { maxDiffPixelRatio: 0.01, animations: "disabled", caret: "hide" },
   },
-  reporter: [["list"], ["html", { open: "never" }]],
+  // JUnit XML feeds the evidence file (evidence/assemble.mjs); the HTML report is published with it.
+  reporter: [["list"], ["html", { open: "never" }], ["junit", { outputFile: "results/junit.xml" }]],
   use: {
     baseURL: process.env.E2E_BASE_URL ?? "http://localhost:8080",
     trace: "retain-on-failure",

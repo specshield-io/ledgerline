@@ -1,0 +1,40 @@
+name: Release SBOM
+
+# LL-N05: attach the CycloneDX SBOM (bom.json) of the released commit to every GitHub release.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    name: sbom
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: write # upload the release asset
+    steps:
+      - name: Checkout the release tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
+        with:
+          distribution: temurin
+          java-version: "25"
+          cache: maven
+
+      - name: Build the SBOM
+        run: |
+          ./mvnw -B -ntp -DskipTests package
+          cp ledgerline-api/target/classes/META-INF/sbom/application.cdx.json bom.json
+
+      - name: Attach bom.json to the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.event.release.tag_name }}
+        run: gh release upload "$TAG" bom.json --clobber -R "$GITHUB_REPOSITORY"

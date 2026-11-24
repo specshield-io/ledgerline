@@ -7,6 +7,7 @@ import com.specshield.ledgerline.webhook.WebhookSigner;
 import jakarta.annotation.PreDestroy;
 import java.net.URI;
 import java.net.http.HttpClient;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -55,7 +56,8 @@ public class MockPayGateway implements PaymentGateway {
         this.environment = environment;
         this.clock = clock;
         this.json = json;
-        this.random = RandomGenerator.of("L64X128MixRandom");
+        // Thread safe: concurrent payments must never get the same id (L64X128MixRandom is not).
+        this.random = new SecureRandom();
         this.http = HttpClient.newBuilder()
                 .executor(executor)
                 .connectTimeout(Duration.ofSeconds(5))

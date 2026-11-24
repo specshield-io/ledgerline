@@ -5,6 +5,8 @@ import com.specshield.ledgerline.application.PaymentEventService;
 import com.specshield.ledgerline.application.ProviderEventDecoder.MalformedEventException;
 import com.specshield.ledgerline.web.ProblemResponses;
 import com.specshield.ledgerline.web.ProblemTypes;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.enums.ParameterIn;
@@ -20,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ProblemDetail;
@@ -39,6 +42,9 @@ public class MockPayWebhookController {
 
     public static final String PATH = "/webhooks/mockpay";
     public static final String SIGNATURE_HEADER = "MockPay-Signature";
+    /** MDC key for the order a log line is about (in JSON logs as orderId). */
+    public static final String ORDER_ID_MDC_KEY = "orderId";
+
     static final int MAX_BODY_BYTES = 64 * 1024;
 
     private static final Logger log = LoggerFactory.getLogger(MockPayWebhookController.class);
@@ -48,6 +54,7 @@ public class MockPayWebhookController {
     private final MockPayEventDecoder decoder;
     private final PaymentEventService events;
     private final WebhookMetrics metrics;
+    private final ObservationRegistry observations;
     private final Clock clock;
 
     public MockPayWebhookController(
@@ -55,11 +62,13 @@ public class MockPayWebhookController {
             MockPayEventDecoder decoder,
             PaymentEventService events,
             WebhookMetrics metrics,
+            ObservationRegistry observations,
             Clock clock) {
         this.verifier = verifier;
         this.decoder = decoder;
         this.events = events;
         this.metrics = metrics;
+        this.observations = observations;
         this.clock = clock;
     }
 
@@ -87,17 +96,20 @@ public class MockPayWebhookController {
             @RequestBody byte[] body,
             HttpServletRequest request) {
         metrics.received();
-        return metrics.processing().record(() -> handle(signature, body, request));
+        try {
+            return metrics.processing().record(() -> handle(signature, body, request));
+        } finally {
+            MDC.remove(ORDER_ID_MDC_KEY);
+        }
     }
 
     private ResponseEntity<?> handle(String signature, byte[] body, HttpServletRequest request) {
         if (body.length > MAX_BODY_BYTES) {
             return reject("body_too_large", body, request);
         }
-        try {
-            verifier.verify(signature, body, clock.instant());
-        } catch (InvalidSignatureException e) {
-            return reject(e.reason().tag(), body, request);
+        String rejection = verify(signature, body);
+        if (rejection != null) {
+            return reject(rejection, body, request);
         }
 
         String payload = new String(body, StandardCharsets.UTF_8);
@@ -111,9 +123,10 @@ public class MockPayWebhookController {
                     HttpStatus.BAD_REQUEST, ProblemTypes.MALFORMED_EVENT, "Malformed event", e.getMessage(), request);
         }
 
+        MDC.put(ORDER_ID_MDC_KEY, String.valueOf(event.orderId()));
         PaymentEventService.Result result;
         try {
-            result = events.process(event, payload);
+            result = process(event, payload);
         } catch (RuntimeException e) {
             metrics.failure();
             // The stack trace is logged once, by ApiExceptionHandler.
@@ -134,6 +147,38 @@ public class MockPayWebhookController {
         }
         log.info("mockpay webhook {} ({}) -> {}", event.eventId(), event.type(), result.outcome());
         return ResponseEntity.ok(ack);
+    }
+
+    /** Span/timer {@code webhook.verify}; returns the rejection reason tag, or null if the signature is valid. */
+    private String verify(String signature, byte[] body) {
+        Observation observation = Observation.createNotStarted("webhook.verify", observations)
+                .contextualName("webhook verify")
+                .lowCardinalityKeyValue("provider", MockPayEventDecoder.PROVIDER);
+        return observation.observe(() -> {
+            try {
+                verifier.verify(signature, body, clock.instant());
+                observation.lowCardinalityKeyValue("result", "valid");
+                return null;
+            } catch (InvalidSignatureException e) {
+                observation.lowCardinalityKeyValue("result", e.reason().tag());
+                return e.reason().tag();
+            }
+        });
+    }
+
+    /** Span/timer {@code webhook.process}: inbox, sequencing, order update, audit and outbox in one transaction. */
+    private PaymentEventService.Result process(DecodedEvent event, String payload) {
+        Observation observation = Observation.createNotStarted("webhook.process", observations)
+                .contextualName("webhook process")
+                .lowCardinalityKeyValue("provider", MockPayEventDecoder.PROVIDER)
+                .lowCardinalityKeyValue("event.type", event.knownType() ? event.type() : "unknown")
+                .highCardinalityKeyValue("event.id", event.eventId())
+                .highCardinalityKeyValue("order.id", String.valueOf(event.orderId()));
+        return observation.observe(() -> {
+            PaymentEventService.Result result = events.process(event, payload);
+            observation.lowCardinalityKeyValue("outcome", result.outcome().name());
+            return result;
+        });
     }
 
     private ResponseEntity<ProblemDetail> reject(String reason, byte[] body, HttpServletRequest request) {
