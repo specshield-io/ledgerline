@@ -39,8 +39,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
         } finally {
 <span class="fc" id="L40">            log.info(</span>
                     &quot;{} {} -&gt; {} ({} ms)&quot;,
-<span class="fc" id="L42">                    request.getMethod(),</span>
-<span class="fc" id="L43">                    request.getRequestURI(),</span>
+<span class="fc" id="L42">                    LogSafe.of(request.getMethod()),</span>
+<span class="fc" id="L43">                    LogSafe.of(request.getRequestURI()),</span>
 <span class="fc" id="L44">                    response.getStatus(),</span>
 <span class="fc" id="L45">                    (System.nanoTime() - start) / 1_000_000);</span>
 <span class="fc" id="L46">            MDC.remove(OrderService.CORRELATION_ID_MDC_KEY);</span>

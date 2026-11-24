@@ -1,0 +1,36 @@
+{
+  "repo": "specshield-io/ledgerline",
+  "gitSha": "e360215ad24b82a3b35db6248b2dcdecfede3214",
+  "builtAt": "2026-11-24T20:43:29.057Z",
+  "tests": {
+    "unit": 226,
+    "integration": 134,
+    "e2e": 11,
+    "total": 371,
+    "failed": 0
+  },
+  "coverage": {
+    "line": 95.2,
+    "domain": 99.5
+  },
+  "mutation": {
+    "score": 90.1
+  },
+  "load": {
+    "p95ms": null,
+    "rps": null,
+    "errors": null,
+    "errorRate": null,
+    "requests": null,
+    "environment": null
+  },
+  "scans": {
+    "codeql": "pass",
+    "trivyCritical": 0,
+    "zapHigh": null
+  },
+  "sbomUrl": "https://specshield-io.github.io/ledgerline/evidence/bom.json",
+  "sources": {
+    "codeql": "https://github.com/specshield-io/ledgerline/actions/runs/45482646401"
+  }
+}

@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LogSafe.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">ledgerline-api</a> &gt; <a href="index.source.html" class="el_package">com.specshield.ledgerline.web</a> &gt; <span class="el_source">LogSafe.java</span></div><h1>LogSafe.java</h1><pre class="source lang-java linenums">package com.specshield.ledgerline.web;
+
+/**
+ * Makes request-supplied values safe to put in a log line. Anything outside printable ASCII (including CR, LF, tab and
+ * other control characters) becomes {@code _}, so a value cannot start a forged log line or hide behind terminal escape
+ * sequences, and the result is capped at {@value #MAX_LENGTH} characters. Request URIs and methods are printable ASCII
+ * on the wire (non-ASCII is percent-encoded), so legitimate values pass through unchanged.
+ *
+ * &lt;p&gt;The {@code prod} JSON log format escapes control characters on its own; this also covers the plain-text format
+ * used locally and in tests.
+ */
+final class LogSafe {
+
+    static final int MAX_LENGTH = 512;
+
+    private LogSafe() {}
+
+    static String of(String value) {
+<span class="fc bfc" id="L19" title="All 2 branches covered.">        if (value == null) {</span>
+<span class="fc" id="L20">            return &quot;null&quot;;</span>
+        }
+<span class="fc bfc" id="L22" title="All 2 branches covered.">        String capped = value.length() &gt; MAX_LENGTH ? value.substring(0, MAX_LENGTH) + &quot;...&quot; : value;</span>
+<span class="fc" id="L23">        return capped.replaceAll(&quot;[^\\x20-\\x7E]&quot;, &quot;_&quot;);</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>

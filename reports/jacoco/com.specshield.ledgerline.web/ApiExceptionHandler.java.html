@@ -155,8 +155,12 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
     @ExceptionHandler(Exception.class)
     ResponseEntity&lt;ProblemDetail&gt; unexpected(Exception e, HttpServletRequest request) {
-<span class="fc" id="L158">        log.error(&quot;unhandled exception for {} {}&quot;, request.getMethod(), request.getRequestURI(), e);</span>
-<span class="fc" id="L159">        return respond(</span>
+<span class="fc" id="L158">        log.error(</span>
+                &quot;unhandled exception for {} {}&quot;,
+<span class="fc" id="L160">                LogSafe.of(request.getMethod()),</span>
+<span class="fc" id="L161">                LogSafe.of(request.getRequestURI()),</span>
+                e);
+<span class="fc" id="L163">        return respond(</span>
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 ProblemTypes.INTERNAL_ERROR,
                 &quot;Internal error&quot;,
@@ -167,34 +171,34 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
     @Override
     protected ResponseEntity&lt;Object&gt; handleMethodArgumentNotValid(
             MethodArgumentNotValidException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-<span class="nc" id="L170">        List&lt;Map&lt;String, String&gt;&gt; errors = new ArrayList&lt;&gt;();</span>
-<span class="nc bnc" id="L171" title="All 2 branches missed.">        for (FieldError fe : ex.getBindingResult().getFieldErrors()) {</span>
-<span class="nc" id="L172">            errors.add(Map.of(&quot;field&quot;, fe.getField(), &quot;message&quot;, String.valueOf(fe.getDefaultMessage())));</span>
-<span class="nc" id="L173">        }</span>
-<span class="nc" id="L174">        ProblemDetail problem = ex.getBody();</span>
-<span class="nc" id="L175">        problem.setType(ProblemTypes.VALIDATION);</span>
-<span class="nc" id="L176">        problem.setTitle(&quot;Invalid request&quot;);</span>
-<span class="nc" id="L177">        problem.setDetail(&quot;The request body has &quot; + errors.size() + &quot; invalid field(s).&quot;);</span>
-<span class="nc" id="L178">        problem.setProperty(&quot;errors&quot;, errors);</span>
-<span class="nc" id="L179">        return handleExceptionInternal(ex, problem, headers, status, request);</span>
+<span class="nc" id="L174">        List&lt;Map&lt;String, String&gt;&gt; errors = new ArrayList&lt;&gt;();</span>
+<span class="nc bnc" id="L175" title="All 2 branches missed.">        for (FieldError fe : ex.getBindingResult().getFieldErrors()) {</span>
+<span class="nc" id="L176">            errors.add(Map.of(&quot;field&quot;, fe.getField(), &quot;message&quot;, String.valueOf(fe.getDefaultMessage())));</span>
+<span class="nc" id="L177">        }</span>
+<span class="nc" id="L178">        ProblemDetail problem = ex.getBody();</span>
+<span class="nc" id="L179">        problem.setType(ProblemTypes.VALIDATION);</span>
+<span class="nc" id="L180">        problem.setTitle(&quot;Invalid request&quot;);</span>
+<span class="nc" id="L181">        problem.setDetail(&quot;The request body has &quot; + errors.size() + &quot; invalid field(s).&quot;);</span>
+<span class="nc" id="L182">        problem.setProperty(&quot;errors&quot;, errors);</span>
+<span class="nc" id="L183">        return handleExceptionInternal(ex, problem, headers, status, request);</span>
     }
 
     @Override
     protected ResponseEntity&lt;Object&gt; handleHandlerMethodValidationException(
             HandlerMethodValidationException ex, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-<span class="fc" id="L185">        List&lt;Map&lt;String, String&gt;&gt; errors = new ArrayList&lt;&gt;();</span>
-<span class="fc" id="L186">        ex.getParameterValidationResults().forEach(result -&gt; {</span>
-<span class="fc" id="L187">            String name = result.getMethodParameter().getParameterName();</span>
-<span class="fc" id="L188">            result.getResolvableErrors()</span>
-<span class="fc" id="L189">                    .forEach(err -&gt; errors.add(Map.of(</span>
-<span class="fc" id="L190">                            &quot;parameter&quot;, String.valueOf(name), &quot;message&quot;, String.valueOf(err.getDefaultMessage()))));</span>
-<span class="fc" id="L191">        });</span>
-<span class="fc" id="L192">        ProblemDetail problem = ex.getBody();</span>
-<span class="fc" id="L193">        problem.setType(ProblemTypes.VALIDATION);</span>
-<span class="fc" id="L194">        problem.setTitle(&quot;Invalid request&quot;);</span>
-<span class="fc" id="L195">        problem.setDetail(&quot;The request has &quot; + errors.size() + &quot; invalid parameter(s) or header(s).&quot;);</span>
-<span class="fc" id="L196">        problem.setProperty(&quot;errors&quot;, errors);</span>
-<span class="fc" id="L197">        return handleExceptionInternal(ex, problem, headers, status, request);</span>
+<span class="fc" id="L189">        List&lt;Map&lt;String, String&gt;&gt; errors = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L190">        ex.getParameterValidationResults().forEach(result -&gt; {</span>
+<span class="fc" id="L191">            String name = result.getMethodParameter().getParameterName();</span>
+<span class="fc" id="L192">            result.getResolvableErrors()</span>
+<span class="fc" id="L193">                    .forEach(err -&gt; errors.add(Map.of(</span>
+<span class="fc" id="L194">                            &quot;parameter&quot;, String.valueOf(name), &quot;message&quot;, String.valueOf(err.getDefaultMessage()))));</span>
+<span class="fc" id="L195">        });</span>
+<span class="fc" id="L196">        ProblemDetail problem = ex.getBody();</span>
+<span class="fc" id="L197">        problem.setType(ProblemTypes.VALIDATION);</span>
+<span class="fc" id="L198">        problem.setTitle(&quot;Invalid request&quot;);</span>
+<span class="fc" id="L199">        problem.setDetail(&quot;The request has &quot; + errors.size() + &quot; invalid parameter(s) or header(s).&quot;);</span>
+<span class="fc" id="L200">        problem.setProperty(&quot;errors&quot;, errors);</span>
+<span class="fc" id="L201">        return handleExceptionInternal(ex, problem, headers, status, request);</span>
     }
 
     /**
@@ -204,45 +208,45 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
     @Override
     protected ResponseEntity&lt;Object&gt; handleExceptionInternal(
             Exception ex, @Nullable Object body, HttpHeaders headers, HttpStatusCode status, WebRequest request) {
-<span class="fc" id="L207">        ResponseEntity&lt;Object&gt; response = super.handleExceptionInternal(ex, body, headers, status, request);</span>
-<span class="pc bpc" id="L208" title="2 of 4 branches missed.">        if (response != null &amp;&amp; response.getBody() instanceof ProblemDetail problem) {</span>
-<span class="fc bfc" id="L209" title="All 2 branches covered.">            if (problem.getType() == null</span>
-<span class="pc bpc" id="L210" title="1 of 2 branches missed.">                    || &quot;about:blank&quot;.equals(problem.getType().toString())) {</span>
-<span class="fc" id="L211">                problem.setType(typeFor(ex, status.value()));</span>
+<span class="fc" id="L211">        ResponseEntity&lt;Object&gt; response = super.handleExceptionInternal(ex, body, headers, status, request);</span>
+<span class="pc bpc" id="L212" title="2 of 4 branches missed.">        if (response != null &amp;&amp; response.getBody() instanceof ProblemDetail problem) {</span>
+<span class="fc bfc" id="L213" title="All 2 branches covered.">            if (problem.getType() == null</span>
+<span class="pc bpc" id="L214" title="1 of 2 branches missed.">                    || &quot;about:blank&quot;.equals(problem.getType().toString())) {</span>
+<span class="fc" id="L215">                problem.setType(typeFor(ex, status.value()));</span>
             }
-<span class="pc bpc" id="L213" title="1 of 2 branches missed.">            if (problem.getTitle() == null) {</span>
-<span class="nc" id="L214">                problem.setTitle(HttpStatus.valueOf(status.value()).getReasonPhrase());</span>
+<span class="pc bpc" id="L217" title="1 of 2 branches missed.">            if (problem.getTitle() == null) {</span>
+<span class="nc" id="L218">                problem.setTitle(HttpStatus.valueOf(status.value()).getReasonPhrase());</span>
             }
-<span class="pc bpc" id="L216" title="1 of 2 branches missed.">            if (problem.getDetail() == null) {</span>
-<span class="nc" id="L217">                problem.setDetail(HttpStatus.valueOf(status.value()).getReasonPhrase());</span>
+<span class="pc bpc" id="L220" title="1 of 2 branches missed.">            if (problem.getDetail() == null) {</span>
+<span class="nc" id="L221">                problem.setDetail(HttpStatus.valueOf(status.value()).getReasonPhrase());</span>
             }
-<span class="fc" id="L219">            String correlationId = MDC.get(OrderService.CORRELATION_ID_MDC_KEY);</span>
-<span class="pc bpc" id="L220" title="1 of 2 branches missed.">            if (correlationId != null) {</span>
-<span class="fc" id="L221">                problem.setProperty(ProblemResponses.CORRELATION_ID_PROPERTY, correlationId);</span>
+<span class="fc" id="L223">            String correlationId = MDC.get(OrderService.CORRELATION_ID_MDC_KEY);</span>
+<span class="pc bpc" id="L224" title="1 of 2 branches missed.">            if (correlationId != null) {</span>
+<span class="fc" id="L225">                problem.setProperty(ProblemResponses.CORRELATION_ID_PROPERTY, correlationId);</span>
             }
         }
-<span class="fc" id="L224">        return response;</span>
+<span class="fc" id="L228">        return response;</span>
     }
 
     private static URI typeFor(Exception ex, int status) {
-<span class="pc bpc" id="L228" title="2 of 6 branches missed.">        return switch (ex) {</span>
-<span class="fc" id="L229">            case MissingRequestHeaderException ignored -&gt; ProblemTypes.MISSING_HEADER;</span>
-<span class="fc" id="L230">            case NoResourceFoundException ignored -&gt; ProblemTypes.NOT_FOUND;</span>
-<span class="fc" id="L231">            case HttpRequestMethodNotSupportedException ignored -&gt; ProblemTypes.METHOD_NOT_ALLOWED;</span>
-<span class="nc" id="L232">            case HttpMediaTypeNotSupportedException ignored -&gt; ProblemTypes.UNSUPPORTED_MEDIA_TYPE;</span>
-<span class="nc" id="L233">            case HttpMediaTypeNotAcceptableException ignored -&gt; ProblemTypes.NOT_ACCEPTABLE;</span>
-<span class="fc" id="L234">            default -&gt; ProblemTypes.forStatus(status);</span>
+<span class="pc bpc" id="L232" title="2 of 6 branches missed.">        return switch (ex) {</span>
+<span class="fc" id="L233">            case MissingRequestHeaderException ignored -&gt; ProblemTypes.MISSING_HEADER;</span>
+<span class="fc" id="L234">            case NoResourceFoundException ignored -&gt; ProblemTypes.NOT_FOUND;</span>
+<span class="fc" id="L235">            case HttpRequestMethodNotSupportedException ignored -&gt; ProblemTypes.METHOD_NOT_ALLOWED;</span>
+<span class="nc" id="L236">            case HttpMediaTypeNotSupportedException ignored -&gt; ProblemTypes.UNSUPPORTED_MEDIA_TYPE;</span>
+<span class="nc" id="L237">            case HttpMediaTypeNotAcceptableException ignored -&gt; ProblemTypes.NOT_ACCEPTABLE;</span>
+<span class="fc" id="L238">            default -&gt; ProblemTypes.forStatus(status);</span>
         };
     }
 
     private static ProblemDetail problem(
             HttpStatus status, URI type, String title, String detail, HttpServletRequest request) {
-<span class="fc" id="L240">        return ProblemResponses.problem(status, type, title, detail, request.getRequestURI());</span>
+<span class="fc" id="L244">        return ProblemResponses.problem(status, type, title, detail, request.getRequestURI());</span>
     }
 
     private static ResponseEntity&lt;ProblemDetail&gt; respond(
             HttpStatus status, URI type, String title, String detail, HttpServletRequest request) {
-<span class="fc" id="L245">        return ResponseEntity.status(status).body(problem(status, type, title, detail, request));</span>
+<span class="fc" id="L249">        return ResponseEntity.status(status).body(problem(status, type, title, detail, request));</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>
