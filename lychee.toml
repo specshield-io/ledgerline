@@ -1,0 +1,31 @@
+# Link check for every Markdown file (ci.yml, job link-check). Run locally:
+#   docker run --rm -v "$PWD:/input:ro" -w /input -e GITHUB_TOKEN lycheeverse/lychee:<version> --config lychee.toml .
+# (use the lychee version pinned by the lychee-action in ci.yml)
+
+# Check #anchors in Markdown files too, so a renamed heading breaks the build.
+include_fragments = "anchor-only"
+no_progress = true
+max_retries = 3
+retry_wait_time = 5
+timeout = 30
+# 429: rate limited by the remote host; the link exists.
+accept = ["200..=299", "429"]
+
+exclude_path = [
+  "node_modules",
+  "target",
+  "ops-console/node",
+  "ops-console/playwright-report",
+  "ops-console/test-results",
+]
+
+exclude = [
+  # The running app in the quick start; not reachable from CI.
+  '^https?://localhost',
+  '^https?://127\.0\.0\.1',
+  # Reserved example domain (RFC 2606) used for placeholder addresses.
+  'specshield\.example',
+  # Created by the release workflow when a tag is pushed, so absent until the first release exists.
+  '^https://github\.com/specshield-io/ledgerline/releases/tag/',
+  '^https://github\.com/specshield-io/ledgerline/compare/',
+]

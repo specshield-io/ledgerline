@@ -1,10 +1,12 @@
+---
+status: accepted
+date: 2026-11-24
+decision-makers: SpecShield Labs engineering
+---
+
 # ADR 0003: Transactional outbox for merchant notifications
 
-- Status: accepted
-- Date: 2026-11-24
-- Context: Ledgerline (SpecShield Labs internal demonstration, synthetic data only)
-
-## Context
+## Context and Problem Statement
 
 When an order changes state in a way a merchant cares about (paid, payment failed, refunded, partially
 refunded, cancelled), the merchant must be told through an HTTP POST to its endpoint. The state change lives in
@@ -16,7 +18,27 @@ answer 500 for hours. We need:
 3. bounded, polite retries that do not hammer a merchant that is recovering;
 4. a way for an operator to see what failed and to send it again.
 
-## Decisions
+How do we commit an order change and tell an external HTTP endpoint about it, when no transaction spans both?
+
+## Decision Drivers
+
+* No lost and no phantom notifications (requirements 1 and 2).
+* Never hold a row lock or a pooled connection while waiting on a merchant.
+* Polite, bounded retries; failures visible and replayable by an operator.
+* No new infrastructure unless it removes a problem we actually have.
+
+## Considered Options
+
+* Dual-write: commit, then POST (or POST, then commit)
+* POST inside the database transaction
+* Distributed transaction (2PC/XA)
+* Transactional outbox table plus a relay
+
+## Decision Outcome
+
+Chosen option: "Transactional outbox table plus a relay", because it is the only option that makes the change and
+the notification atomic with the tools we have. The relay is a polling dispatcher using `FOR UPDATE SKIP LOCKED`
+([ADR 0004](0004-postgres-skip-locked-over-a-broker.md) explains why not a broker). The details follow.
 
 ### 1. Outbox, not dual-write
 
@@ -132,14 +154,50 @@ The outbox stays; only what reads it changes.
 5. **Migrate safely**: run the broker relay in shadow mode (publish without marking rows), compare, switch, then
    remove the HTTP relay.
 
-## Consequences
+### Consequences
 
-- An order change and its notification commit or roll back together (LL-I13). Notifications are not lost while
+- Good: an order change and its notification commit or roll back together (LL-I13). Notifications are not lost while
   the database survives.
-- Delivery is at-least-once and unordered; this is documented for merchants and in AGENTS.md.
-- A merchant that stays down for about 17 minutes produces DEAD rows, which need an operator to replay them.
+- Neutral: delivery is at-least-once and unordered; this is documented for merchants and in AGENTS.md.
+- Bad: a merchant that stays down for about 17 minutes produces DEAD rows, which need an operator to replay them.
   `ledgerline_outbox_dead_total`, `ledgerline_outbox_pending` and `ledgerline_outbox_oldest_pending_age_seconds`
   are the signals to alert on (alert rules are not part of this change).
-- The admin endpoints are unauthenticated in this demo; `X-Operator` is self-declared. Real authentication and
-  authorisation must come before anything like this is exposed.
-- The relay supports one merchant URL. Per-merchant endpoints and secrets would need a merchant table.
+- The admin endpoints need HTTP Basic (`VIEWER` lists, `ADMIN` replays), and the audit actor is the authenticated
+  user name. (When this ADR was first written they were unauthenticated with a self-declared `X-Operator` header;
+  that was replaced before release.) HTTP Basic against configured BCrypt hashes is adequate for a demo, not for
+  a production operator console, which would use SSO.
+- Bad: the relay supports one merchant URL. Per-merchant endpoints and secrets would need a merchant table.
+
+### Confirmation
+
+`OutboxRelayIT` (LL-I13 to LL-I18, LL-I20), `BackoffPolicyTest` (LL-U14), the `merchant-down` and `merchant-slow`
+chaos scenarios (LL-I21) and the end-to-end dead-letter replay (LL-E04).
+
+## Pros and Cons of the Options
+
+### Dual-write
+
+* Good, because simplest to write.
+* Bad, because every ordering has a failure window: commit-then-POST loses notifications on a crash, POST-then-commit
+  announces changes that never happened (table above).
+
+### POST inside the transaction
+
+* Bad, because a slow merchant holds row locks and a pooled connection for seconds, and both dual-write failures
+  remain.
+
+### Distributed transaction (2PC/XA)
+
+* Bad, because an HTTP endpoint is not an XA resource; it does not exist for this pair.
+
+### Transactional outbox
+
+* Good, because atomic with the change by construction (one local transaction).
+* Good, because the outbox doubles as an operator view of what failed (`/api/v1/admin/outbox`).
+* Bad, because delivery becomes asynchronous and at-least-once, so receivers must deduplicate.
+* Bad, because the table grows until a purge job exists.
+
+## More Information
+
+* Inbound counterpart (inbox and signatures): [ADR 0002](0002-webhook-signature-and-inbox.md).
+* Relay mechanics and the broker question: [ADR 0004](0004-postgres-skip-locked-over-a-broker.md).

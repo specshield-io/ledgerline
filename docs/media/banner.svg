@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="240" viewBox="0 0 1200 240" role="img" aria-labelledby="t d">
+  <title id="t">Ledgerline by SpecShield Labs</title>
+  <desc id="d">Reliable payment event processing: signed webhooks, an inbox, a transactional outbox and idempotency keys.</desc>
+  <rect width="1200" height="240" rx="16" fill="#0f172a"/>
+  <g fill="none" stroke="#38bdf8" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="72,132 104,132 120,96 144,168 164,112 178,132 214,132"/>
+  </g>
+  <text x="248" y="122" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="64" font-weight="700" fill="#f8fafc">Ledgerline</text>
+  <text x="250" y="166" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="24" fill="#cbd5e1">Payment webhooks applied once, however many times and in whatever order they arrive.</text>
+  <text x="1128" y="212" text-anchor="end" font-family="ui-sans-serif, system-ui, -apple-system, Segoe UI, Helvetica, Arial, sans-serif"
+        font-size="18" fill="#94a3b8">SpecShield Labs · internal demonstration · synthetic data</text>
+</svg>

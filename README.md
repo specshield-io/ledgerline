@@ -1,4 +1,6 @@
-# Ledgerline
+<p align="center">
+  <img src="docs/media/banner.svg" alt="Ledgerline by SpecShield Labs: payment webhooks applied once, however many times and in whatever order they arrive" width="100%">
+</p>
 
 <!-- Badges: live. Tests, coverage and mutation score are read from the evidence file CI publishes on every push to main. -->
 [![CI](https://github.com/specshield-io/ledgerline/actions/workflows/ci.yml/badge.svg)](https://github.com/specshield-io/ledgerline/actions/workflows/ci.yml)
@@ -9,83 +11,189 @@
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/specshield-io/ledgerline/badge)](https://scorecard.dev/viewer/?uri=github.com/specshield-io/ledgerline)
 [![Licence](https://img.shields.io/badge/licence-Apache--2.0-blue)](LICENSE)
 
+**Ledgerline shows, in running code and tests that prove it, how to process payment events so that a duplicated,
+reordered or forged webhook can never corrupt an order and a committed change always reaches the merchant.**
+
 > [!IMPORTANT]
-> **SpecShield Labs, internal demonstration.**
-> Ledgerline is an engineering demonstration. It uses **synthetic data only**. It is **not** a
-> production payment system and is **not** PCI DSS scoped. Do not use it to process real payments or
-> real personal data.
+> **Internal demonstration, synthetic data, not a production payment system.** Ledgerline is an engineering
+> demonstration by SpecShield Labs. It is not PCI DSS scoped and must not process real payments or personal data.
 
-Ledgerline is a reliable order and payment event processing service. The goal is to show, in code and
-tests, how to process payment events correctly: idempotency, a transactional outbox, signed webhooks,
-retries and failure handling under chaos.
+<p align="center">
+  <img src="docs/media/ledgerline.gif" alt="The operations console running two chaos scenarios: a duplicate storm ends Paid with four Deduplicated entries, and a tampered webhook is rejected while the order stays Payment pending" width="900">
+</p>
 
-**Status:** domain model, schema, the public orders API with idempotency, the MockPay simulator sending real signed webhooks, the hardened webhook receiver, signed merchant notifications through a transactional outbox, a public chaos API with rate limiting, role-based admin access and self-resetting demo data, and the operations console that shows it all live.
+**Live demo:** not published yet · **2-minute video:** not published yet ·
+**[Evidence page](https://specshield-io.github.io/ledgerline/)** (test counts, coverage, mutation score and reports
+from the latest CI run on `main`)
 
-## Stack
+The recording above is the real console against `docker compose up`, made with
+[`ops-console/scripts/record-gif.mjs`](ops-console/scripts/record-gif.mjs) (17 s).
 
-| Area | Choice |
-|---|---|
-| Runtime | Java 25 (LTS), Spring Boot 4.0.10 |
-| Build | Maven 3.10.2 via `./mvnw` |
-| Database | PostgreSQL 17, Flyway migrations |
-| API docs | springdoc-openapi 3.0.3 (`/v3/api-docs`, `/swagger-ui.html` outside `prod`) |
-| Observability | Actuator `health`, `info`, `prometheus` |
-| Console | React 19, TypeScript (strict), Vite 8, TanStack Query, React Router, Tailwind CSS 4, Radix UI, lucide |
-| Tests | JUnit 6, Testcontainers 2, ArchUnit, jqwik, WireMock, REST Assured; Vitest, Testing Library, MSW, Playwright, axe |
-| Quality | JaCoCo and PIT (both gated), Spotless, CodeQL, OpenSSF Scorecard, Trivy, OWASP ZAP, CycloneDX SBOM |
-| Observability | Micrometer Observation, OpenTelemetry tracing (OTLP export when configured), ECS JSON logs in `prod` |
-| Load testing | k6 |
+---
 
-## Getting started
+**Contents:** [1. The problem](#1-the-problem) · [2. What this demonstrates](#2-what-this-demonstrates) ·
+[3. Architecture](#3-architecture) · [4. Quick start](#4-quick-start) ·
+[5. Try the failure scenarios](#5-try-the-failure-scenarios) · [6. Test strategy](#6-test-strategy) ·
+[7. Security notes and known limitations](#7-security-notes-and-known-limitations) ·
+[8. At 10x scale we would…](#8-at-10x-scale-we-would) · [9. Code tour](#9-code-tour) ·
+[10. About SpecShield Labs](#10-about-specshield-labs) · [Further reading](#further-reading)
 
-Prerequisites: JDK 25 and Docker.
+## 1. The problem
 
-```bash
-./mvnw verify                 # all tests (integration tests need Docker)
-docker compose up --build     # PostgreSQL 17 + app
-curl localhost:8080/actuator/health   # {"status":"UP"}
+Payment providers tell you what happened through webhooks, and webhooks are hostile input:
+
+- **Duplicates.** Providers deliver at least once. A lost `200` means the same "payment succeeded" arrives again,
+  sometimes five times in the same second. Applied twice, a refund is two refunds.
+- **Out of order.** A retried "payment failed" can arrive after "payment succeeded". Applied in arrival order, a
+  paid order goes back to failed.
+- **Forgeries and replays.** The endpoint is public. Anyone can POST a "payment succeeded", or capture a genuine
+  one and send it again next week.
+- **Dual-write inconsistency.** "Update the order, then call the merchant" loses the notification when the process
+  dies between the two; "call, then update" announces changes that then roll back. No transaction spans a
+  database and an HTTP call.
+- **Retries from your own clients.** A timeout on `POST /orders` leaves the client unsure whether to retry; without
+  idempotency, retrying creates a second order.
+
+## 2. What this demonstrates
+
+Each guarantee is enforced by a named mechanism and proven by tests with catalogue IDs you can grep for
+(`grep -rn "LL-I08" .`).
+
+| Guarantee | Mechanism | Proven by |
+|---|---|---|
+| A forged, tampered or replayed webhook never changes an order | HMAC-SHA256 over the raw bytes and a signed timestamp, constant-time compare, 300 s window ([ADR 0002](docs/adr/0002-webhook-signature-and-inbox.md)) | LL-U08 to LL-U13, LL-I09, LL-I21, LL-E03 |
+| A duplicate is applied once, even 50 concurrent copies | Inbox row with a unique key, in the same transaction as the change | LL-I07, LL-I08, LL-I21, LL-E02 |
+| Events arriving in any order converge to the right state | Order row lock plus `OrderEventSequencer` applying events by sequence | LL-P01 (1000 generated histories), LL-U06, LL-E05 |
+| A merchant notification exists if and only if the change committed | Transactional outbox written in the change's transaction ([ADR 0003](docs/adr/0003-transactional-outbox.md)) | LL-I13 |
+| A merchant outage loses nothing; failures are visible and replayable | Retries with full-jitter backoff, timeouts, dead letters, admin replay, crash watchdog | LL-U14, LL-I15, LL-I16, LL-I18, LL-I20, LL-E04 |
+| Several relays never deliver the same row concurrently | `FOR UPDATE SKIP LOCKED` claims and claim-conditional updates ([ADR 0004](docs/adr/0004-postgres-skip-locked-over-a-broker.md)) | LL-I17 |
+| A client can retry any state-changing request safely | `Idempotency-Key` with a request fingerprint and byte-exact replay ([ADR 0005](docs/adr/0005-idempotency-key-design.md)) | LL-I01 to LL-I05 |
+| Every error is machine-readable | RFC 9457 `application/problem+json` with stable type URNs | LL-C02 |
+| Admin actions need a role; the public API is rate limited | HTTP Basic with BCrypt hashes, per-IP token buckets, trusted-proxy rule | LL-C03, LL-C04 |
+| The domain stays free of framework code | ArchUnit layering rules | LL-A01, LL-A02 |
+| The quick start works on a clean machine | CI job that clones, starts and exercises the stack | LL-N06 |
+
+Prefixes: `U` unit, `P` property, `I` integration, `C` contract and cross-cutting, `E` end to end, `F` console,
+`A` architecture, `N` non-functional.
+
+## 3. Architecture
+
+**Container view (C4 level 2).** Two containers at runtime: the Ledgerline application (API, outbox relay, MockPay
+simulator and the console's static files, in one Spring Boot jar) and PostgreSQL. The relay and MockPay are drawn
+separately because they matter here; MockPay runs in the same process but talks to the API only over real, signed
+HTTP.
+
+```mermaid
+flowchart LR
+    operator["<b>Operator / visitor</b><br/>[Person]"]
+    merchant["<b>Merchant endpoint</b><br/>[External system]<br/>Receives signed order.* notifications"]
+
+    subgraph ledgerline["Ledgerline [Software system]"]
+        console["<b>Operations console</b><br/>[Container: React 19, TypeScript]<br/>Scenarios, orders, live timeline, outbox"]
+        api["<b>Ledgerline API</b><br/>[Container: Java 25, Spring Boot 4]<br/>Orders, idempotency, webhook receiver + inbox, chaos API"]
+        relay["<b>Outbox relay</b><br/>[Component in the API container]<br/>Polls, signs, delivers, retries"]
+        mockpay["<b>MockPay simulator</b><br/>[Component in the API container]<br/>Sends signed webhooks over real HTTP"]
+        db[("<b>PostgreSQL 17</b><br/>[Container: database]<br/>orders, inbox, audit_log, outbox,<br/>idempotency_keys, mockpay_ledger")]
+    end
+
+    operator -- "HTTPS" --> console
+    console -- "JSON / HTTPS (polling)" --> api
+    api -- "start payment" --> mockpay
+    mockpay -- "POST /webhooks/mockpay<br/>MockPay-Signature (HMAC)" --> api
+    api -- "JDBC: change + inbox + audit + outbox<br/>in one transaction" --> db
+    relay -- "JDBC: claim with<br/>FOR UPDATE SKIP LOCKED" --> db
+    relay -- "POST, Ledgerline-Signature,<br/>Ledgerline-Event-Id" --> merchant
 ```
 
-If `8080` or `5432` is already taken on your machine, override the host ports:
-`LEDGERLINE_HTTP_PORT=18080 LEDGERLINE_DB_PORT=15432 docker compose up --build`.
+**A duplicate delivery.** MockPay sends the same `PAYMENT_SUCCEEDED` twice at the same moment. The unique inbox key
+makes the second transaction wait for the first, then see the conflict.
 
-Using [Colima](https://github.com/abiosoft/colima) instead of Docker Desktop? Testcontainers needs:
+```mermaid
+sequenceDiagram
+    autonumber
+    participant P as MockPay
+    participant R as Webhook receiver
+    participant DB as PostgreSQL
+    participant O as Outbox relay
+    participant M as Merchant
+
+    par Delivery A
+        P->>R: POST evt_123 (signed)
+        R->>R: Verify HMAC on raw bytes, timestamp within 300 s
+        R->>DB: BEGIN, INSERT inbox (mockpay, evt_123) ON CONFLICT DO NOTHING
+        DB-->>R: inserted
+        R->>DB: SELECT order FOR UPDATE, apply pending events by sequence
+        R->>DB: UPDATE order to PAID, INSERT audit and outbox (order.paid), COMMIT
+        R-->>P: 200 {"received":true}
+    and Delivery B (same event, concurrently)
+        P->>R: POST evt_123 (signed)
+        R->>R: Verify HMAC
+        R->>DB: BEGIN, INSERT inbox (mockpay, evt_123) ON CONFLICT DO NOTHING
+        Note over DB: Waits on the unique index until A commits
+        DB-->>R: conflict, 0 rows
+        R->>DB: INSERT audit DUPLICATE, COMMIT
+        R-->>P: 200 {"received":true,"duplicate":true}
+    end
+
+    O->>DB: Claim due rows FOR UPDATE SKIP LOCKED
+    O->>M: POST order.paid (Ledgerline-Event-Id: 42)
+    M-->>O: 2xx
+    O->>DB: Mark DELIVERED (only if still our claim)
+```
+
+The order changes once, the merchant hears about it once in the normal case, and the second delivery is still
+recorded (a `DUPLICATE` audit row and the `ledgerline_webhook_duplicates_total` metric). Merchant delivery is
+at-least-once, so merchants deduplicate by `Ledgerline-Event-Id`.
+
+Package layout and rules: [AGENTS.md](AGENTS.md#2-layout). Every design decision: [ADRs](docs/adr/0001-record-architecture-decisions.md).
+
+## 4. Quick start
+
+**Prerequisites:** Docker with Compose v2 (Docker Desktop, or Colima on macOS). To run the tests you also need
+JDK 25.
+
+```bash
+git clone https://github.com/specshield-io/ledgerline.git && cd ledgerline
+docker compose up --build        # builds the image, starts PostgreSQL 17 and the app
+```
+
+Then open **<http://localhost:8080>**. The stack is ready when `curl localhost:8080/actuator/health` returns
+`{"status":"UP"}`.
+
+```bash
+./mvnw verify                    # all JVM tests: unit, Testcontainers integration, coverage gate, SBOM
+```
+
+**How long it takes.** The CI job `fresh-clone` (LL-N06) runs `docker compose up -d` on a new GitHub-hosted runner
+with empty caches, so the time includes building the image, and fails unless the app is healthy within 180 s. It
+then runs one scenario with curl and tears down. Its log prints the measured time; run it yourself with
+[`scripts/fresh-clone-check.sh`](scripts/fresh-clone-check.sh). Your first build downloads Maven and npm
+dependencies, so it depends on your network.
+
+<details>
+<summary>Ports taken, or using Colima?</summary>
+
+```bash
+LEDGERLINE_HTTP_PORT=18080 LEDGERLINE_DB_PORT=15432 docker compose up --build
+```
+
+Testcontainers with [Colima](https://github.com/abiosoft/colima):
 
 ```bash
 export DOCKER_HOST="unix://$HOME/.colima/default/docker.sock"
 export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock
 ```
 
-Profiles: `local` (default, PostgreSQL on localhost), `test` (Testcontainers), `prod` (all settings from
-environment variables `LEDGERLINE_DB_URL`, `LEDGERLINE_DB_USER`, `LEDGERLINE_DB_PASSWORD`, plus the secrets and
-accounts listed under [Security](#security)).
+</details>
 
-## Operations console
+## 5. Try the failure scenarios
 
-`docker compose up --build`, then open **http://localhost:8080**. The console runs the chaos scenarios and shows,
-live, what the service does with them:
+**In the console:** open <http://localhost:8080>, click a scenario on the left, and watch its order's timeline fill
+in: Received, Applied, Deduplicated, Stale (out of order), Signature rejected, Notification queued, Retry scheduled,
+Outbox delivered.
 
-- **Scenarios** (left): the eight failure modes, each with what to watch for. A run opens its new order.
-- **Orders**: id, merchant reference, amount, status (text and icon, not colour alone), last update; filter by status.
-- **Order timeline**: inbox, audit log and outbox merged, labelled Received, Applied, Deduplicated, Stale (out of
-  order), Signature rejected, Notification queued, Retry scheduled (with the next attempt), Outbox delivered,
-  Dead-lettered. It refreshes every second while a scenario runs, every 5 s otherwise.
-- **Outbox** (sign in as VIEWER or ADMIN; local accounts in [Security](#security)): attempts, last error, next attempt;
-  ADMINs can replay dead letters after a confirmation.
-- **Metrics strip**: webhooks received, events applied, duplicates blocked, signatures rejected, outbox pending
-  (`GET /api/v1/stats`, the same meters as `/actuator/prometheus`, counted since the instance started).
-- **How it works**: the architecture diagram and links to the ADRs.
-
-Light and dark follow the system setting; it works with a keyboard and down to 360 px wide. Tests: Vitest unit tests
-(`LL-F01`..`LL-F05`) and Playwright end-to-end tests (`LL-E01`..`LL-E07`, including axe accessibility checks and phone
-screenshots) run in CI. Details in [ops-console/README.md](ops-console/README.md).
-
-## Try it
-
-Start the stack (`docker compose up --build`), then break things. Each scenario creates its **own** synthetic order
-and drives it through a failure mode with real signed HTTP webhooks from MockPay; it never touches existing orders.
-The answer is `202 {"scenarioRunId": ..., "orderId": ...}`; watch the run, or the order's timeline, which shows every
-step (`CHAOS_STEP`), every provider event with its outcome, and every audit row.
+**With curl:** each scenario creates its **own** synthetic order and drives it with real signed HTTP webhooks from
+MockPay; it never touches existing orders.
 
 ```bash
 B=http://localhost:8080
@@ -99,326 +207,155 @@ start out-of-order      # SUCCEEDED (seq 2), then a late FAILED (seq 1)      -> 
 start merchant-down     # demo merchant answers 500 for 2 min                -> order.paid retried, DELIVERED after
 start merchant-slow     # demo merchant takes 10 s for 2 min                 -> deliveries time out at 3 s, retried
 start refund-flow       # pay, refund 15.00, refund the remaining 34.99      -> REFUNDED
+```
 
-# Follow a run (steps with the receiver's HTTP status), then the order's timeline:
-curl -s "$B/api/v1/chaos/runs/<scenarioRunId>"
-curl -s "$B/api/v1/orders/<orderId>/timeline"
-# The merchant's side of merchant-down / merchant-slow, and the outbox (VIEWER account, local profile):
-curl -s "$B/demo/merchant-sink"
+Each call answers `202 {"scenarioRunId": ..., "orderId": ...}`. Then:
+
+```bash
+curl -s "$B/api/v1/chaos/runs/<scenarioRunId>"          # steps, with the receiver's HTTP status for each
+curl -s "$B/api/v1/orders/<orderId>/timeline"           # inbox, audit and outbox, merged
+curl -s "$B/demo/merchant-sink"                          # what the demo merchant received
 curl -s -u local-viewer:local-dev-only-viewer-password "$B/api/v1/admin/outbox?status=PENDING"
+curl -s "$B/api/v1/stats"                                # received, applied, duplicates, rejections, outbox
 ```
 
-`GET /api/v1/chaos/scenarios` lists the scenarios. Limits: 10 scenario starts per minute per client, and 3 runs in
-progress at once across everyone (`429` problem with `Retry-After`). The same `Idempotency-Key` returns the same run.
-merchant-down and merchant-slow switch the shared demo merchant, so they affect everyone's notifications for
-2 minutes; with the backoff, the delayed `order.paid` usually arrives a few minutes after the outage ends.
+Limits: 10 scenario starts per minute per client and 3 runs in progress at once across everyone (`429` with
+`Retry-After`). `merchant-down` and `merchant-slow` switch the shared demo merchant for 2 minutes. The 25 demo
+orders reset every night at 03:00 UTC. The local accounts above are synthetic and only exist in the `local` profile.
 
-The demo data (25 synthetic orders, `demo-1001` to `demo-1025`, across every status) is seeded when the database is
-empty and wiped and reseeded every night at 03:00 UTC. `GET /api/v1/meta` returns the banner:
-`{"demo":true,"dataResetsAt":"03:00 UTC","version":"...","gitSha":"..."}`.
+Want to drive the API by hand? The order, payment and idempotency endpoints are in the
+[reference](docs/reference.md#api) and in [`docs/openapi.json`](docs/openapi.json) (Swagger UI at
+<http://localhost:8080/swagger-ui.html>).
 
-## API
+## 6. Test strategy
 
-Base path `/api/v1`. The full contract is [`docs/openapi.json`](docs/openapi.json) (OpenAPI 3.1, generated by the
-build and checked in CI); a running app also serves it at `/v3/api-docs` and Swagger UI at `/swagger-ui.html`.
-There is no authentication: this is a demonstration with synthetic data.
+Integration tests run against real PostgreSQL 17 in Testcontainers, never H2, because the guarantees above are
+PostgreSQL behaviour (unique indexes under concurrency, `FOR UPDATE`, `SKIP LOCKED`). Why, and what we traded:
+[ADR 0006](docs/adr/0006-testing-strategy.md).
 
-| Method | Path | Purpose | Success |
-|---|---|---|---|
-| `POST` | `/api/v1/orders` | Create an order (needs `Idempotency-Key`) | `201` + `Location` |
-| `GET` | `/api/v1/orders/{id}` | Read one order | `200` |
-| `GET` | `/api/v1/orders?status=&page=&size=` | List, newest first; `size` at most 100 | `200` |
-| `POST` | `/api/v1/orders/{id}/pay` | Ask MockPay to start a payment (needs `Idempotency-Key`) | `202` |
-| `POST` | `/api/v1/orders/{id}/cancel` | Cancel a `CREATED` order (needs `Idempotency-Key`) | `200` |
-| `GET` | `/api/v1/orders/{id}/timeline` | Audit log and provider events, oldest first | `200` |
-
-```bash
-# Create (repeat it: same 201 body, plus "Idempotent-Replayed: true")
-curl -i -X POST localhost:8080/api/v1/orders -H 'Content-Type: application/json' \
-  -H 'Idempotency-Key: demo-order-0001' \
-  -d '{"merchantRef":"synthetic-order-1001","amountMinor":2599,"currency":"USD"}'
-
-# Read one
-curl localhost:8080/api/v1/orders/$ORDER_ID
-
-# List
-curl 'localhost:8080/api/v1/orders?status=CREATED&page=0&size=10'
-
-# Request payment
-curl -X POST localhost:8080/api/v1/orders/$ORDER_ID/pay -H 'Idempotency-Key: demo-pay-0001'
-
-# Cancel
-curl -X POST localhost:8080/api/v1/orders/$ORDER_ID/cancel -H 'Idempotency-Key: demo-cancel-0001'
-
-# Timeline
-curl localhost:8080/api/v1/orders/$ORDER_ID/timeline
+```
+                 ▲   E2E (Playwright + axe)          LL-E01..E07   real stack in docker compose
+                ▲▲▲  Integration (Testcontainers)    LL-I, LL-C    real PostgreSQL 17, real HTTP (WireMock)
+            ▲▲▲▲▲▲▲  Unit + property + architecture  LL-U, LL-P, LL-A  JUnit 6, jqwik, ArchUnit; PIT-gated
+  Console unit tests (Vitest, Testing Library, MSW) LL-F01..F05 · Non-functional: k6, ZAP, Trivy, CodeQL, LL-N06
 ```
 
-### Idempotency
+**Counts**, from the [evidence file](https://specshield-io.github.io/ledgerline/evidence/latest.json) CI produced
+for commit `131de0e` on 2026-11-24 (CI run
+[45389638927](https://github.com/specshield-io/ledgerline/actions/runs/45389638927)). The badges at the top show the
+latest run.
 
-State-changing `POST`s require `Idempotency-Key` (8 to 128 characters, `[A-Za-z0-9_-]`). The key is bound to a
-SHA-256 of method, path and canonical JSON body (keys sorted, whitespace ignored). Keys expire after 24 hours and
-an hourly job deletes them.
-
-| Situation | Response |
-|---|---|
-| First request | Executed; the response (status, body, `Content-Type`, `Location`) is stored |
-| Same key, same request, completed | Stored response replayed byte for byte, with `Idempotent-Replayed: true` |
-| Same key, different request | `422` `idempotency-key-reuse` |
-| Same key while the first is still running | `409` `idempotency-request-in-progress`, `Retry-After: 1` |
-| First request failed with 5xx | Nothing stored; retrying with the same key executes again |
-| First request failed with 4xx | Stored and replayed like a success |
-
-Known limitation: claiming the key, the business transaction and storing the response are separate
-transactions. If the process dies between the business commit and storing the response, the key stays
-`IN_PROGRESS` (409) until it expires.
-
-### Errors and tracing
-
-Every error is RFC 9457 `application/problem+json` with `type`, `title`, `status`, `detail`, `instance` and
-`correlationId`. Types are stable URNs such as `urn:ledgerline:problem:order-not-found`; branch on `type`.
-Send `X-Request-Id: <uuid>` to choose the correlation id (anything else is replaced by a generated UUID); it is
-echoed on the response, written to every log line of the request and stored on audit rows.
-
-## MockPay and webhooks
-
-MockPay is an in-process payment-provider **simulator** (`ledgerline.mockpay.enabled`, on in the `local`
-profile). It never contacts a real payment network. `POST /pay` records the payment in MockPay's own
-`mockpay_ledger` and, after the transaction commits, sends real HTTP webhooks from a virtual thread to
-`/webhooks/mockpay`: `PAYMENT_INITIATED` at once, then `PAYMENT_SUCCEEDED` (or `PAYMENT_FAILED`, see
-`ledgerline.mockpay.default-outcome`) after 300 to 800 ms. A 5xx or unreachable receiver is retried with
-exponential backoff.
-
-```json
-{"id":"evt_...","type":"PAYMENT_SUCCEEDED","created":1768471200,"sequence":2,
- "data":{"orderId":"...","amountMinor":2599,"currency":"USD"}}
-```
-
-Each delivery is signed like Stripe's: `MockPay-Signature: t=<unix seconds>,v1=<hex HMAC-SHA256 of "t.body">`,
-with one `v1` per configured secret during rotation.
-
-The receiver verifies the raw bytes (constant-time compare, 300 s tolerance), stores the event in the inbox and,
-in the same transaction, locks the order and applies its pending events in sequence order. Responses:
-
-| Delivery | Response | Inbox outcome |
+| Measure | Value | Source report |
 |---|---|---|
-| Valid, applied (or waiting for an earlier event) | `200 {"received":true}` | `APPLIED` (or pending) |
-| Already stored | `200 {"received":true,"duplicate":true}` | unchanged |
-| Unknown event type | `200` | `IGNORED` |
-| Order not found yet | `200` | `ORPHAN`, retried every 30 s for 1 h |
-| Bad, expired or missing signature | `400` `invalid-signature` | `REJECTED` (synthetic id) |
-| Validly signed but not an event | `400` `malformed-event` | none |
-| Unexpected failure | `500`, everything rolled back | none (the provider retries) |
+| JVM unit tests (surefire) | 221 | `*Test` classes |
+| Integration tests (failsafe) | 134 | `*IT` classes |
+| End-to-end tests (Playwright) | 11 | `ops-console/e2e` |
+| Total / failed | 366 / 0 | |
+| Line coverage, overall / `domain` | 95.2 % / 99.5 % | JaCoCo (gate: 90 %) |
+| Mutation score | 90.2 % | PIT on `domain`, `webhook`, `outbox`, `application` (gate: 70 %) |
+| Load test (k6, 200 webhooks/s, 20 % duplicates) | not measured yet | LL-N01 runs on demand; the evidence shows `null` until it has run on `main` |
 
-Metrics (Prometheus): `ledgerline_webhook_received_total`, `_applied_total`, `_duplicates_total`,
-`_stale_total`, `_rejected_total{reason}`, `_failures_total`, and the timer `ledgerline_webhook_processing_seconds`.
-Every 5 minutes, reconciliation compares MockPay's ledger with order statuses and records differences as
-`RECONCILIATION_MISMATCH` audit rows. The design choices are in
-[ADR 0002](docs/adr/0002-webhook-signature-and-inbox.md).
+Console unit tests (Vitest) run in CI but are not yet counted in the evidence file.
 
-Configuration: `ledgerline.webhook.mockpay.secrets` (receiver; required, at least 32 characters each; in `prod`
-from `LEDGERLINE_MOCKPAY_WEBHOOK_SECRETS`, comma separated) and `ledgerline.mockpay.signing-secrets` (simulator).
-The values in `application.yml` are synthetic local and test values.
+**Run each layer:**
 
-## Merchant notifications (transactional outbox)
-
-When an order becomes `PAID`, `PAYMENT_FAILED`, `REFUNDED`, `PARTIALLY_REFUNDED` or `CANCELLED`, an `outbox` row
-is written **in the same transaction** as the change, so the notification exists if and only if the change
-commits. The relay (`outbox.OutboxDispatcher`, every 500 ms) claims up to 20 due rows with
-`FOR UPDATE SKIP LOCKED`, marks them `IN_FLIGHT`, and POSTs each to `ledgerline.merchant.url`:
-
-```
-POST <merchant url>
-Content-Type: application/json
-Ledgerline-Signature: t=1768471200,v1=<hex HMAC-SHA256 of "t.body">
-Ledgerline-Event-Id: 42
-Ledgerline-Delivery-Attempt: 1
-
-{"id":"42","type":"order.paid","createdAt":"2026-01-15T10:00:00Z",
- "data":{"orderId":"...","merchantRef":"...","status":"PAID","previousStatus":"PAYMENT_PENDING",
-         "amountMinor":2599,"refundedMinor":0,"currency":"USD","occurredAt":"2026-01-15T10:00:00Z"}}
-```
-
-- **2xx**: `DELIVERED`. Anything else, or no response within 3 s (connect timeout 2 s): the attempt is counted,
-  `last_error` is stored, and the row is retried after an exponential backoff with full jitter (base 2 s, cap 1 h).
-  After 8 attempts the row is `DEAD`.
-- **At-least-once, unordered.** A row can be delivered more than once (crash recovery, lost acknowledgements), and
-  notifications for one order can arrive out of order. **Receivers must deduplicate by `Ledgerline-Event-Id`**
-  and use `status`/`occurredAt` rather than arrival order.
-- **Crash recovery.** A watchdog returns rows `IN_FLIGHT` for more than 60 s to `PENDING`.
-- **Verify the signature** on the raw body exactly as for MockPay webhooks, with the merchant secret
-  (`ledgerline.merchant.signing-secrets`; in `prod` from `LEDGERLINE_MERCHANT_SIGNING_SECRETS`, with the URL from
-  `LEDGERLINE_MERCHANT_URL`).
-
-Operator endpoints (HTTP Basic; see [Security](#security); the authenticated user is recorded in the audit log):
-
-```bash
-# List, newest first; filter by PENDING, IN_FLIGHT, DELIVERED or DEAD (VIEWER or ADMIN)
-curl -s -u local-viewer:local-dev-only-viewer-password 'localhost:8080/api/v1/admin/outbox?status=DEAD'
-# Send a DEAD message again (ADMIN; attempts reset; OUTBOX_REPLAYED audit row with actor operator:local-admin)
-curl -s -u local-admin:local-dev-only-admin-password -X POST localhost:8080/api/v1/admin/outbox/42/replay \
-  -H 'Idempotency-Key: replay-42-0001'
-```
-
-In the `local` profile the notifications go to a built-in **demo merchant**, `POST /demo/merchant-sink`, which
-verifies the signature, deduplicates by event id and records what it received (`GET /demo/merchant-sink`). The
-merchant-down and merchant-slow chaos scenarios make it fail (500) or answer slowly for 2 minutes. It is off in `prod` and not
-part of the OpenAPI document.
-
-Metrics (Prometheus): `ledgerline_outbox_pending`, `ledgerline_outbox_oldest_pending_age_seconds`,
-`ledgerline_outbox_delivered_total`, `ledgerline_outbox_failed_total{reason}`, `ledgerline_outbox_dead_total`,
-`ledgerline_outbox_watchdog_released_total` and the timer `ledgerline_outbox_delivery_seconds{outcome}`. Why an
-outbox rather than dual-write, why no broker yet, and how to move to Kafka or SQS:
-[ADR 0003](docs/adr/0003-transactional-outbox.md).
-
-## Security
-
-| Who | May use |
+| Layer | Command |
 |---|---|
-| Anyone (rate limited) | the console (`/`, `/outbox`, `/assets/**`), `GET/POST /api/v1/orders/**`, `/api/v1/chaos/**`, `/api/v1/meta`, `/api/v1/stats`, `/actuator/health`, `/actuator/info`, `/v3/api-docs`, Swagger UI |
-| Signed callers | `POST /webhooks/mockpay` (MockPay HMAC), `/demo/merchant-sink` (Ledgerline HMAC) |
-| `VIEWER` (HTTP Basic) | `GET /api/v1/admin/**`, `/actuator/prometheus` |
-| `ADMIN` (HTTP Basic) | everything above, plus `POST /api/v1/admin/outbox/{id}/replay` and `POST /api/v1/admin/reset` |
+| Unit, property, architecture, integration, coverage gate | `./mvnw verify` (backend only: `./mvnw verify -Dskip.frontend`) |
+| Mutation testing (fails below 70 %) | `./mvnw -Pmutation -Dskip.frontend test-compile pitest:mutationCoverage` |
+| Console unit tests | `cd ops-console && npm ci && npm test` |
+| End to end | `docker compose up --build --wait`, then `ops-console/scripts/e2e-docker.sh` (pinned Playwright image, as CI) |
+| Load test | `docker compose -f docker-compose.yml -f docker-compose.perf.yml up --build --wait && perf/run.sh` |
+| Fresh clone (LL-N06) | `scripts/fresh-clone-check.sh` |
+| Evidence assembler | `node --test evidence/assemble.test.mjs` |
 
-Everything else is `403`. An anonymous request to an admin path is `401` with `WWW-Authenticate: Basic`. Both are
-problem+json.
+All quality gates and when they run: [reference](docs/reference.md#evidence-and-quality-gates).
 
-- **Accounts** come from configuration as **BCrypt hashes**, never passwords. In `prod`:
-  `LEDGERLINE_ADMIN_USERNAME` and `LEDGERLINE_ADMIN_PASSWORD_HASH` (required; startup fails without them), and
-  optionally `LEDGERLINE_VIEWER_USERNAME` and `LEDGERLINE_VIEWER_PASSWORD_HASH`. Make a hash with, for example,
-  `htpasswd -nbBC 12 "" 'your-password' | cut -d: -f2`. The `local` and `test` profiles contain synthetic accounts
-  whose passwords are written next to them in `application.yml`; they are not secrets.
-- **Rate limits** (Bucket4j, in memory, per instance, per client IP): 240 requests per minute to the API and its
-  documentation (the console polls; one visitor uses at most about 150 per minute), 10 chaos scenario starts per
-  minute. Over the limit: `429` problem+json with `Retry-After`.
-  Webhooks are authenticated by signature and not limited. Limits apply before authentication, so floods with bogus
-  credentials cost no BCrypt work. With N instances the effective limit is N times higher.
-- **Client IP.** `X-Forwarded-For` is trusted only when the TCP peer is in `LEDGERLINE_TRUSTED_PROXIES` (comma
-  separated CIDRs of the Fly.io or Cloudflare proxies in front of the app), and is then read from the right. Unset,
-  the header is ignored. The proxy ranges for a given deployment must be configured there; none are built in.
-- **Headers** on every response: `Strict-Transport-Security: max-age=31536000; includeSubDomains`,
-  `X-Content-Type-Options: nosniff`, a `Content-Security-Policy` allowing only this origin (scripts, styles, images,
-  API calls) with `frame-ancestors 'none'`, `X-Frame-Options: DENY`, `Referrer-Policy: strict-origin-when-cross-origin`,
-  `Permissions-Policy` (camera, microphone, geolocation, payment, usb off) and `Cross-Origin-Opener-Policy: same-origin`.
-- **CORS**: `/api/**` from `https://www.specshield.example` (plus `http://localhost:5173` and `:3000` in `local`),
-  methods GET and POST, no credentials.
-- **CSRF** protection is off only for `/api/**`, `/webhooks/**` and the demo merchant: they use no cookies or sessions,
-  and every state-changing API call needs the `Idempotency-Key` header, which a browser cannot send cross-origin
-  without a CORS preflight.
-- **Request bodies** are at most 64 KiB (`413`, also for chunked bodies) and must be JSON (`415`).
+## 7. Security notes and known limitations
 
-## Evidence and quality gates
+What is in place: signed webhooks in both directions with zero-downtime secret rotation; HTTP Basic admin roles
+(`VIEWER` reads, `ADMIN` changes) against BCrypt hashes from configuration; deny-by-default access rules; per-IP rate
+limits with a trusted-proxy rule for `X-Forwarded-For`; strict security headers and CSP; 64 KiB body limit;
+problem+json errors that never leak stack traces; CodeQL, Trivy, OWASP ZAP, Dependabot and a CycloneDX SBOM per
+release. Details: [reference, Security](docs/reference.md#security). Report vulnerabilities as described in
+[SECURITY.md](SECURITY.md).
 
-Every number about this project is produced by a CI run, never typed in. On each push to `main` the `evidence` job
-writes **[evidence/latest.json](https://specshield-io.github.io/ledgerline/evidence/latest.json)** to GitHub Pages,
-next to the [Playwright](https://specshield-io.github.io/ledgerline/reports/playwright/),
-[JaCoCo](https://specshield-io.github.io/ledgerline/reports/jacoco/) and
-[PIT](https://specshield-io.github.io/ledgerline/reports/pit/) reports and the
-[SBOM](https://specshield-io.github.io/ledgerline/evidence/bom.json):
+What it is **not**, honestly:
 
-```json
-{"repo": "...", "gitSha": "...", "builtAt": "...",
- "tests": {"unit": 0, "integration": 0, "e2e": 0, "total": 0, "failed": 0},
- "coverage": {"line": 0.0, "domain": 0.0}, "mutation": {"score": 0.0},
- "load": {"p95ms": 0.0, "rps": 0.0, "errors": 0, "environment": "GitHub-hosted runner (...), N vCPU, docker compose"},
- "scans": {"codeql": "pass|fail", "trivyCritical": 0, "zapHigh": 0}, "sbomUrl": "..."}
-```
+- **MockPay is not a real payment provider.** It is an in-process simulator that sends real signed HTTP webhooks.
+  There is no card network, no real money and no PCI DSS scope. Integrating a real provider means its SDK, its
+  signature scheme and its event model.
+- **Rate limits are in memory, per instance.** With N instances the effective limit is N times higher, and limits
+  reset on restart. A shared store (Redis) or the edge proxy would be needed for a real limit.
+- **Single region, single database.** No replication, failover or backups are configured; the database is a single
+  point of failure.
+- **Admin authentication is HTTP Basic** against accounts in configuration. Fine for a demo console; a real
+  operator console would use SSO (OIDC) with MFA and short-lived sessions.
+- **The public API has no client authentication** (it is a public demo), so idempotency keys are global rather than
+  per client.
+- **Delivery to merchants is at-least-once and unordered**, by design ([ADR 0003](docs/adr/0003-transactional-outbox.md)).
+- **An idempotency window remains:** if the process dies between the business commit and storing the response,
+  the key answers `409` until it expires after 24 h ([ADR 0005](docs/adr/0005-idempotency-key-design.md)).
+- **No retention jobs** for the inbox, audit log or outbox tables yet; the webhook endpoint is not rate limited
+  (it is authenticated by signature), so rejected deliveries can grow the inbox.
+- **Open code-scanning alert:** CodeQL reports one high-severity `java/tainted-arithmetic` alert in
+  `WebhookSignatureVerifier`, so the evidence file shows `codeql: fail`. It is not yet triaged.
+- **Alert rules are not configured.** The metrics to alert on are listed in the [runbook](docs/runbook.md#what-to-alert-on).
 
-(Shape only; the zeros are placeholders.) `evidence/assemble.mjs` parses surefire/failsafe and Playwright JUnit
-XML, `jacoco.xml`, PIT's `mutations.xml`, the k6 summary and the Trivy and ZAP JSON reports. A value it cannot
-measure is `null` ("not measured"), never a default; LL-N08 tests this with fixture reports. Test counts, coverage,
-mutation score and the Trivy count come from the same commit; load, ZAP and CodeQL from their latest scheduled or
-manual run on `main` (linked under `sources`).
+## 8. At 10x scale we would…
 
-| Gate | ID | When | Fails when |
-|---|---|---|---|
-| Unit + integration tests, coverage | LL-N03 | every push and PR | any test fails; line coverage below 90 % overall or 90 % in `domain` (JaCoCo) |
-| Mutation testing (PIT, unit tests) | LL-N02 | nightly, on demand, every push to `main` | mutation score below 70 % on `domain`, `webhook`, `outbox`, `application` |
-| Load test (k6, 200 webhooks/s, 20 % duplicates) | LL-N01 | on demand (`load-test.yml`) | failed requests ≥ 0.1 %, p95 ≥ 150 ms, or an event applied twice |
-| OWASP ZAP baseline | LL-N04 | weekly, on demand | any High alert (accepted findings: `.zap/rules.tsv`) |
-| Trivy image scan | LL-N05 | every push and PR | any CRITICAL vulnerability |
-| CodeQL (Java, TypeScript) | | every push, PR, weekly | GitHub code scanning alerts |
-| OpenSSF Scorecard | | push to `main`, weekly | (score published, badge above) |
+The current design is the cheapest correct one for one service and demo volumes. We have not load-tested beyond
+the k6 scenario (LL-N01), so this is a plan, not a measured result. In order of when each step pays off:
 
-The CycloneDX SBOM is attached as `bom.json` to every GitHub release (`release-sbom.yml`).
+1. **Partition the outbox** by time (PostgreSQL declarative partitioning) so delivered rows are dropped by partition
+   instead of deleted, and add retention for the inbox and audit log. The polling relay with `SKIP LOCKED` already
+   scales out across instances without coordination.
+2. **Put a broker behind the outbox** once there is a second consumer or polling shows up in database load: the
+   relay publishes to Kafka (key = order id, for per-order ordering) or SQS FIFO, or Debezium reads the outbox from
+   the WAL. The outbox stays, and the event id merchants deduplicate on does not change
+   ([ADR 0004](docs/adr/0004-postgres-skip-locked-over-a-broker.md), [ADR 0003 §7](docs/adr/0003-transactional-outbox.md#7-moving-to-kafka-or-sqs-later)).
+3. **Shared rate limiting and multiple instances** behind a load balancer: limits in Redis or at the edge, sessions
+   unchanged (the API is stateless).
+4. **Multi-region:** a managed PostgreSQL with a synchronous standby for failover, read replicas for the timeline and
+   list endpoints, and webhook ingestion in each region writing to the primary. Active-active writes would need
+   order-level ownership per region, which we would only take on with a concrete latency requirement.
+5. **A secrets manager** (AWS Secrets Manager, GCP Secret Manager or Vault) for the webhook, merchant and database
+   secrets, with the rotation in the [runbook](docs/runbook.md#rotate-a-webhook-secret-with-zero-downtime)
+   automated, and per-merchant secrets and endpoints in a merchant table.
+6. **SSO for operators** and an append-only audit store, plus SLOs and alerts on outbox age and webhook failures.
 
-Run them locally:
+## 9. Code tour
 
-```bash
-./mvnw verify                                               # tests + JaCoCo gate
-./mvnw -Pmutation -Dskip.frontend test-compile pitest:mutationCoverage   # PIT, report in ledgerline-api/target/pit-reports
-docker compose -f docker-compose.yml -f docker-compose.perf.yml up --build --wait && perf/run.sh   # k6 + DB check
-node --test evidence/assemble.test.mjs                      # LL-N08
-```
+Six files that carry the design, in reading order:
 
-## Observability
+| File | Why read it |
+|---|---|
+| [`webhook/WebhookSignatureVerifier.java`](ledgerline-api/src/main/java/com/specshield/ledgerline/webhook/WebhookSignatureVerifier.java) | Raw-byte HMAC, bounded header parsing, constant-time compare, rotation: the front door. |
+| [`application/PaymentEventService.java`](ledgerline-api/src/main/java/com/specshield/ledgerline/application/PaymentEventService.java) | One transaction: inbox insert, order lock, apply, audit and outbox. Where duplicates die. |
+| [`domain/OrderEventSequencer.java`](ledgerline-api/src/main/java/com/specshield/ledgerline/domain/OrderEventSequencer.java) | Applies an order's events in sequence order whatever the arrival order; pure Java, property-tested. |
+| [`persistence/JdbcOutboxStore.java`](ledgerline-api/src/main/java/com/specshield/ledgerline/persistence/JdbcOutboxStore.java) | The `SKIP LOCKED` claim and the claim-conditional updates that make concurrent relays safe. |
+| [`application/IdempotencyService.java`](ledgerline-api/src/main/java/com/specshield/ledgerline/application/IdempotencyService.java) | Claim, fingerprint, replay, abandon: retry-safe POSTs in under 150 lines. |
+| [`domain/EventReplayPropertyTest.java`](ledgerline-api/src/test/java/com/specshield/ledgerline/domain/EventReplayPropertyTest.java) | LL-P01: 1000 duplicated, shuffled histories must all converge to the canonical result. |
 
-- **Tracing**: Micrometer Observation with the OpenTelemetry bridge (`spring-boot-starter-opentelemetry`). Custom
-  spans `webhook.verify`, `webhook.process` and `outbox.deliver` (also timers of the same name in Prometheus), on top
-  of HTTP server and JDBC observations. Set `OTEL_EXPORTER_OTLP_ENDPOINT` (and `OTEL_EXPORTER_OTLP_HEADERS`, for
-  example for Grafana Cloud) to export spans and metrics over OTLP/HTTP; unset, nothing is exported. Every request is
-  sampled (`management.tracing.sampling.probability`).
-- **Logs**: in `prod`, one JSON object per line in Elastic Common Schema, with `correlationId` (the `X-Request-Id`),
-  `traceId`, `spanId` and, where an order is involved, `orderId`. Other profiles log text with
-  `[correlationId] [traceId]` on every line.
-- **Metrics**: `/actuator/prometheus` (VIEWER or ADMIN), and `GET /api/v1/stats` for the console.
+## 10. About SpecShield Labs
 
-## Domain model
+SpecShield Labs is a small engineering firm. Ledgerline is how we show our working: every guarantee above has a
+mechanism, a test ID and a CI report behind it, and every number in this README comes from a run you can
+reproduce.
 
-All money is `long` minor units (cents) in `USD`; all times are UTC `Instant`s. The domain package
-(`com.specshield.ledgerline.domain`) has no Spring, JPA or web dependencies (ArchUnit rule LL-A01).
+**Contact:** open an [issue](https://github.com/specshield-io/ledgerline/issues) on this repository, or reach the maintainers through the
+[specshield-io organisation on GitHub](https://github.com/specshield-io). Security reports: see
+[SECURITY.md](SECURITY.md).
 
-`OrderStateMachine.apply(order, event)` returns `Applied(newStatus)`, `Stale(reason)` or `Ignored(reason)`, or
-throws `IllegalTransitionException`. Checks run in this order:
+## Further reading
 
-1. Order `CANCELLED`: every event is **Ignored**.
-2. Event sequence at or below the last applied sequence: **Stale** (out of order or replayed).
-3. `PAYMENT_FAILED` once the order is `PAID`, `PARTIALLY_REFUNDED` or `REFUNDED`: **Stale**.
-4. Transitions:
+| Document | For |
+|---|---|
+| [docs/reference.md](docs/reference.md) | API, idempotency, webhooks, outbox, security, observability, domain model, schema |
+| [docs/adr/](docs/adr/0001-record-architecture-decisions.md) | Architecture decisions 0001 to 0006 (MADR) |
+| [docs/runbook.md](docs/runbook.md) | Deploy, reset, rotate secrets, read metrics, common incidents |
+| [AGENTS.md](AGENTS.md) | Engineering rules and Definition of Done (for humans and AI agents) |
+| [CONTRIBUTING.md](CONTRIBUTING.md) · [CHANGELOG.md](CHANGELOG.md) · [SECURITY.md](SECURITY.md) | Contributing, releases, vulnerability reports |
+| [ops-console/README.md](ops-console/README.md) | The React operations console |
 
-| From | Event | To |
-|---|---|---|
-| `CREATED` | `PAYMENT_INITIATED` | `PAYMENT_PENDING` |
-| `PAYMENT_PENDING` | `PAYMENT_SUCCEEDED` | `PAID` |
-| `PAYMENT_PENDING` | `PAYMENT_FAILED` | `PAYMENT_FAILED` |
-| `PAYMENT_FAILED` | `PAYMENT_SUCCEEDED` | `PAID` |
-| `PAID` / `PARTIALLY_REFUNDED` | `REFUND_SUCCEEDED` | `PARTIALLY_REFUNDED` (amount below refundable) or `REFUNDED` (equal) |
-| `CREATED` | `cancel()` | `CANCELLED` |
-
-Anything else, including a refund above the refundable amount, throws. `OrderStateMachineMatrixTest` (LL-U05)
-pins every (status, event) pair.
-
-**Event ordering.** Because a lower sequence is Stale, applying events in arrival order would lose an
-out-of-order refund (refund #5 first makes #4 Stale). `OrderEventSequencer` is the single place that applies an
-order's pending events: it drops repeated `providerEventId`s, sorts by sequence, applies up to the next expected
-sequence and leaves events after a gap waiting. It assumes provider sequences have no gaps; an event that keeps
-waiting means a missing predecessor and must be surfaced, never applied out of order. The jqwik property LL-P01
-drives this sequencer through 1000 generated histories, each duplicated (0 to 4 extra copies per event) and
-shuffled, and checks it reaches the same final status and refunded amount as the canonical history.
-
-## Database schema
-
-Flyway `V1__init.sql` to `V6__outbox_by_order.sql` (PostgreSQL 17): `orders`, `order_events_inbox` (unique on
-`provider, provider_event_id`; `order_id` for the timeline), `audit_log`, `idempotency_keys` (raw response bytes
-for exact replay), `mockpay_ledger` (the simulator's own record), `outbox` (partial index on `next_attempt_at` where `status = 'PENDING'`; `claimed_at` set only while
-`IN_FLIGHT`), `shedlock` (the lock that keeps the demo reset from running twice at once).
-Check constraints mirror the domain invariants (amount range, `USD`, status list, refunded amount consistent
-with status). Hibernate only validates the schema.
-
-## Repository layout
-
-```
-ledgerline-api/   Spring Boot service
-perf/             k6 load test (LL-N01) and its database check
-evidence/         evidence/latest.json assembler (LL-N08) and GitHub Pages publisher
-ops-console/      React operations console, built into the jar (see ops-console/README.md)
-```
-
-## Contributing
-
-Read [AGENTS.md](AGENTS.md) first. It holds the architecture rules, testing rules and Definition of Done.
-Report vulnerabilities as described in [SECURITY.md](SECURITY.md).
-
-## Licence
-
-[Apache-2.0](LICENSE)
+Licence: [Apache-2.0](LICENSE).

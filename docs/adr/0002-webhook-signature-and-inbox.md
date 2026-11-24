@@ -1,18 +1,42 @@
+---
+status: accepted
+date: 2026-11-23
+decision-makers: SpecShield Labs engineering
+---
+
 # ADR 0002: Webhook signatures and the inbox
 
-- Status: accepted
-- Date: 2026-11-23
-- Context: Ledgerline (SpecShield Labs internal demonstration, synthetic data only)
-
-## Context
+## Context and Problem Statement
 
 MockPay, our payment-provider simulator, reports payment progress by POSTing signed webhooks to
 `/webhooks/mockpay`. Like any real provider it delivers **at least once**: it retries on 5xx and timeouts, so the
 same event can arrive many times, concurrently, and out of order. The endpoint is reachable without
-authentication, so anyone can send it anything. We need to (1) accept only genuine events, (2) apply each event
-exactly once, (3) never lose an event, and (4) tell the provider when to stop retrying.
+authentication, so anyone can send it anything.
 
-## Decisions
+How do we (1) accept only genuine events, (2) apply each event exactly once, (3) never lose an event, and (4) tell
+the provider when to stop retrying?
+
+## Decision Drivers
+
+* A forged or replayed event must never change an order.
+* A duplicate delivery, even 50 at once, must change the order at most once.
+* The deduplication record and the state change must commit or roll back together.
+* The status code must tell a well-behaved provider whether retrying can help.
+* No extra infrastructure for a service whose state already lives in PostgreSQL.
+
+## Considered Options
+
+* **Authenticity:** HMAC-SHA256 over timestamp and raw body (Stripe style) · mutual TLS · IP allow-list ·
+  shared bearer token
+* **Deduplication:** PostgreSQL inbox table with a unique key, in the business transaction · Redis "seen" set
+  with a TTL · no deduplication (rely on idempotent state transitions)
+* **Duplicate response:** `200` · `409 Conflict`
+
+## Decision Outcome
+
+Chosen options: **HMAC-SHA256 over the raw bytes with a signed timestamp and a 300 s window**, verified in
+constant time; a **PostgreSQL inbox** written in the same transaction as the order change; and **`200` for
+duplicates**. Each part is detailed below.
 
 ### 1. Stripe-style HMAC signature, verified on the raw bytes
 
@@ -28,7 +52,7 @@ exactly once, (3) never lose an event, and (4) tell the provider when to stop re
   (LL-U13).
 - **Rotation.** The receiver accepts any configured secret, and MockPay signs with every configured secret (one
   `v1` each). To rotate: add the new secret to the receiver, then to MockPay, then remove the old one from both.
-  At no point does a valid delivery fail.
+  At no point does a valid delivery fail. The operational steps are in the [runbook](../runbook.md#rotate-a-webhook-secret-with-zero-downtime).
 
 ### 2. Constant-time comparison
 
@@ -49,17 +73,7 @@ directions, so a provider clock running fast is caught too.
 ### 4. A PostgreSQL inbox, not Redis
 
 Every verified event is inserted into `order_events_inbox`, unique on `(provider, provider_event_id)`, **in the
-same transaction** as the order change, audit rows and outbox row. We chose this over a Redis "seen" set because:
-
-- **Atomicity.** The dedupe record and the state change commit or roll back together. With Redis there are two
-  stores and no shared transaction: mark-then-apply loses the event if the apply fails, and apply-then-mark
-  applies it twice if the mark fails.
-- **The unique index is the lock.** Under 50 concurrent deliveries of one event (LL-I08), PostgreSQL makes the
-  second insert wait for the first transaction and then report the conflict. No distributed lock and no TTL.
-- **Durability and audit.** The inbox keeps every event's payload and outcome (APPLIED, DUPLICATE, STALE,
-  IGNORED, ORPHAN, REJECTED, FAILED) for the order timeline, investigations and reconciliation. A Redis key with
-  a TTL forgets.
-- **One less moving part** for a demo whose database is already PostgreSQL.
+same transaction** as the order change, audit rows and outbox row.
 
 We use `INSERT ... ON CONFLICT DO NOTHING RETURNING id`, not a plain insert that throws. The unique constraint
 still decides, but a violated constraint aborts a PostgreSQL transaction, and we must still write the DUPLICATE
@@ -67,35 +81,104 @@ audit row in it.
 
 Events can also arrive **out of order** (a retried PAYMENT_INITIATED after PAYMENT_SUCCEEDED). The state machine
 treats a lower sequence as STALE, so applying events in arrival order could make an earlier event STALE and lose
-it (ADR context for LL-P01). The receiver therefore locks the order (`SELECT ... FOR UPDATE`) and hands **all** of
-its pending inbox events to `OrderEventSequencer`, which applies them in sequence order and leaves events after a
-gap pending until the missing one arrives.
+it (the reason for property test LL-P01). The receiver therefore locks the order (`SELECT ... FOR UPDATE`) and
+hands **all** of its pending inbox events to `OrderEventSequencer`, which applies them in sequence order and leaves
+events after a gap pending until the missing one arrives.
 
 ### 5. 200 for duplicates
 
-A duplicate is answered `200 {"received":true,"duplicate":true}`, not 409.
+A duplicate is answered `200 {"received":true,"duplicate":true}`, not 409. The other status codes follow the same
+rule, "will retrying help?": invalid signature or malformed event is 400 (retrying the same bytes cannot succeed);
+an unexpected failure is 500 after a full rollback, including the inbox row, so the retry is processed as new
+(LL-I12); unknown event types and unknown orders are 200 (IGNORED, or ORPHAN with retries for an hour, LL-I11).
 
-- A provider retries until it gets a 2xx. The duplicate exists because our earlier 2xx was lost or late; the
-  event *was* processed, and the honest answer is "received". A 4xx would make a well-behaved provider retry,
-  alert or disable the endpoint, all for an event we already hold.
-- The work is idempotent: the second delivery changes nothing (LL-I07, LL-I08), and is visible in the
-  `ledgerline_webhook_duplicates_total` metric and as a `DUPLICATE` audit row.
+### Consequences
 
-The other status codes follow the same rule, "will retrying help?": invalid signature or malformed event is 400
-(retrying the same bytes cannot succeed); an unexpected failure is 500 after a full rollback, including the inbox
-row, so the retry is processed as new (LL-I12); unknown event types and unknown orders are 200 (IGNORED, or
-ORPHAN with retries for an hour, LL-I11).
-
-## Consequences
-
-- **Rejected deliveries are stored safely.** A rejected delivery gets an inbox row with a synthetic id
+* Good, because forged, tampered and replayed deliveries are rejected before any business code runs (LL-U08 to
+  LL-U13, LL-I09).
+* Good, because a duplicate, even under 50 concurrent deliveries, changes nothing (LL-I07, LL-I08).
+* Good, because the inbox keeps every event's payload and outcome for the order timeline and reconciliation.
+* Neutral: rejected deliveries are stored safely. A rejected delivery gets an inbox row with a synthetic id
   (`rejected_<uuid>`) and only the body's SHA-256 and length, never the untrusted event id. Otherwise a forger
   could claim the id of a future genuine event and make it look like a duplicate. The secret and the signature
   are never logged or echoed (LL-I09).
-- **Abuse can grow the inbox.** Each rejected request writes a row. Rate limiting the endpoint is future work.
-- **Gaps need watching.** Events behind a missing sequence number wait indefinitely; they should feed a "stuck
-  events" alert.
-- **One known window remains.** If the database commits but our 200 is lost, the provider retries and gets a
-  duplicate 200. That is correct and costs nothing.
-- **Reconciliation catches drift.** Every 5 minutes, MockPay's own ledger is compared with order statuses, and
-  differences become `RECONCILIATION_MISMATCH` audit rows (LL-I19). It catches lost webhooks and manual edits.
+* Bad, because abuse can grow the inbox: each rejected request writes a row, and the webhook endpoint is not rate
+  limited (it is authenticated by signature).
+* Bad, because events behind a missing sequence number wait indefinitely; they should feed a "stuck events" alert
+  (not built yet).
+* Neutral: if the database commits but our 200 is lost, the provider retries and gets a duplicate 200. That is
+  correct and costs nothing.
+* Good, because reconciliation catches drift. Every 5 minutes, MockPay's own ledger is compared with order
+  statuses, and differences become `RECONCILIATION_MISMATCH` audit rows (LL-I19). It catches lost webhooks and
+  manual edits.
+
+### Confirmation
+
+`WebhookSignatureVerifierTest` (LL-U08 to LL-U13, including the ArchUnit bytecode rule for constant-time
+comparison), `MockPayWebhookIT` (LL-I06 to LL-I12) and the `duplicate-storm`, `tampered-webhook`, `replay-attack`
+and `out-of-order` chaos scenarios (LL-I21, LL-E02, LL-E03, LL-E05).
+
+## Pros and Cons of the Options
+
+### HMAC-SHA256 over timestamp and raw body
+
+* Good, because it is what payment providers use (Stripe, GitHub, Shopify follow the same pattern), so merchants
+  and reviewers recognise it.
+* Good, because the signed timestamp bounds replay without server-side state.
+* Good, because it allows zero-downtime secret rotation with several `v1` values.
+* Bad, because both sides hold the secret (it is symmetric).
+
+### Mutual TLS
+
+* Good, because authentication happens before any bytes reach the application.
+* Bad, because it needs certificate issuance and rotation on both sides and is awkward behind TLS-terminating
+  proxies such as Fly.io or Cloudflare.
+
+### IP allow-list
+
+* Good, because simple.
+* Bad, because provider IP ranges change, and it proves nothing about the body or its freshness.
+
+### Shared bearer token
+
+* Good, because simple.
+* Bad, because a leaked token lets anyone forge any event forever, and it does not protect the body from tampering.
+
+### PostgreSQL inbox in the business transaction
+
+* Good, because the dedupe record and the state change commit or roll back together.
+* Good, because the unique index is the lock: under 50 concurrent deliveries (LL-I08), PostgreSQL makes the second
+  insert wait for the first transaction and then report the conflict. No distributed lock and no TTL.
+* Good, because durable: payload and outcome (APPLIED, DUPLICATE, STALE, IGNORED, ORPHAN, REJECTED, FAILED) are
+  kept for audit.
+* Bad, because the table grows; a retention job is future work.
+
+### Redis "seen" set with a TTL
+
+* Good, because fast.
+* Bad, because two stores and no shared transaction: mark-then-apply loses the event if the apply fails, and
+  apply-then-mark applies it twice if the mark fails.
+* Bad, because a key with a TTL forgets, and it is one more system to run.
+
+### No deduplication
+
+* Bad, because a refund delivered twice is two refunds unless every transition is perfectly idempotent, which is
+  a much harder invariant to keep than one unique index.
+
+### 200 for duplicates
+
+* Good, because the duplicate exists only because our earlier 2xx was lost or late; the event *was* processed, and
+  the honest answer is "received".
+* Good, because the second delivery is still visible (`ledgerline_webhook_duplicates_total`, a `DUPLICATE` audit
+  row).
+
+### 409 for duplicates
+
+* Bad, because a well-behaved provider treats a 4xx as failure and retries, alerts or disables the endpoint, all for
+  an event we already hold.
+
+## More Information
+
+* Outbound merchant notifications use the same signature scheme with a separate secret:
+  [ADR 0003](0003-transactional-outbox.md).
+* Stripe documents the same scheme and 300 s default in its webhook signature documentation.
