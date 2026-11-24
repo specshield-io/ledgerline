@@ -46,9 +46,9 @@ ledgerline-api,com.specshield.ledgerline.application,OutboxStatus,0,27,0,0,0,5,0
 ledgerline-api,com.specshield.ledgerline.application,OutboxMessageNotReplayableException,0,13,0,0,0,4,0,2,0,2
 ledgerline-api,com.specshield.ledgerline.application,IdempotencyService.Decision.KeyReused,0,3,0,0,0,1,0,1,0,1
 ledgerline-api,com.specshield.ledgerline.application,IdempotencyService.Decision.InProgress,0,3,0,0,0,1,0,1,0,1
+ledgerline-api,com.specshield.ledgerline.application,OutboxStore.OutboxPage,0,18,0,0,0,1,0,1,0,1
 ledgerline-api,com.specshield.ledgerline.application,StoredResponse,3,26,1,1,0,4,1,2,0,2
 ledgerline-api,com.specshield.ledgerline.application,IdempotencyService.Decision.Proceed,0,3,0,0,0,1,0,1,0,1
-ledgerline-api,com.specshield.ledgerline.application,OutboxStore.OutboxPage,0,18,0,0,0,1,0,1,0,1
 ledgerline-api,com.specshield.ledgerline.application,OutboxMessage,0,36,0,0,0,1,0,1,0,1
 ledgerline-api,com.specshield.ledgerline.application,PaymentEventService.Result,0,12,0,0,0,1,0,1,0,1
 ledgerline-api,com.specshield.ledgerline.application,DecodedEvent,0,22,0,2,0,2,0,3,0,2
@@ -116,8 +116,8 @@ ledgerline-api,com.specshield.ledgerline.web,RequestLimitsFilter,2,131,3,21,1,35
 ledgerline-api,com.specshield.ledgerline.web,ConsoleController,0,5,0,0,0,2,0,2,0,2
 ledgerline-api,com.specshield.ledgerline.web,RateLimiter,0,100,0,4,0,24,0,7,0,5
 ledgerline-api,com.specshield.ledgerline.web,RateLimiter.Key,0,9,0,0,0,1,0,1,0,1
-ledgerline-api,com.specshield.ledgerline.web,ApiExceptionHandler,91,308,10,12,16,60,12,24,3,20
 ledgerline-api,com.specshield.ledgerline.web,ClientIpResolver,2,208,5,43,1,44,5,23,0,4
+ledgerline-api,com.specshield.ledgerline.web,ApiExceptionHandler,91,308,10,12,16,60,12,24,3,20
 ledgerline-api,com.specshield.ledgerline.web,OutboxMessageResponse,0,59,0,0,0,12,0,2,0,2
 ledgerline-api,com.specshield.ledgerline.web,ProblemErrorController,12,49,5,5,1,15,5,2,0,2
 ledgerline-api,com.specshield.ledgerline.web,StatsController.StatsResponse,0,24,0,0,0,1,0,1,0,1
