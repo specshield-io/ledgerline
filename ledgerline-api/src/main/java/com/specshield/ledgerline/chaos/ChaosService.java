@@ -128,6 +128,7 @@ public class ChaosService {
         if (run.correlationId() != null) {
             MDC.put(OrderService.CORRELATION_ID_MDC_KEY, run.correlationId());
         }
+        MDC.put("orderId", run.orderId().toString());
         try {
             hook.beforeSteps(run);
             steps(run, provider, sink);
@@ -144,6 +145,7 @@ public class ChaosService {
         } finally {
             slots.release();
             MDC.remove(OrderService.CORRELATION_ID_MDC_KEY);
+            MDC.remove("orderId");
         }
     }
 

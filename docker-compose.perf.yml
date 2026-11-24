@@ -1,0 +1,9 @@
+# LL-N01 load test settings, layered on docker-compose.yml:
+#   docker compose -f docker-compose.yml -f docker-compose.perf.yml up --build --wait && perf/run.sh
+# The k6 container joins the compose network and reaches the app as http://ledgerline-api:8080 (not "app": Chromium's
+# HSTS preload covers .app, and the same alias keeps E2E and load tests alike). Everything else is the local profile.
+services:
+  app:
+    networks:
+      default:
+        aliases: [ledgerline-api]

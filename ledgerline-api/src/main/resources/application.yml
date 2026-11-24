@@ -48,6 +48,16 @@ management:
   info:
     env:
       enabled: false
+  tracing:
+    # Every request is traced (a demo with modest traffic). Spans are exported only when OTEL_EXPORTER_OTLP_ENDPOINT
+    # is set (config.OtlpEnvironment); otherwise tracing still fills traceId/spanId in the logs.
+    sampling:
+      probability: 1.0
+  otlp:
+    metrics:
+      export:
+        # Pushed only with OTEL_EXPORTER_OTLP_ENDPOINT; Prometheus scraping (/actuator/prometheus) is always on.
+        enabled: false
 
 springdoc:
   # Set explicitly: springdoc warns at startup when these are left to their defaults.
@@ -67,7 +77,7 @@ logging:
     org.springframework.web.servlet.PageNotFound: error
   pattern:
     # Every log line carries the request's correlation id (X-Request-Id), set by CorrelationIdFilter.
-    correlation: "[%X{correlationId:-}] "
+    correlation: "[%X{correlationId:-}] [%X{traceId:-}] "
 
 ledgerline:
   idempotency:
@@ -256,6 +266,11 @@ spring:
 springdoc:
   swagger-ui:
     enabled: false
+logging:
+  structured:
+    format:
+      # One JSON object per line (Elastic Common Schema), with the MDC: correlationId, traceId, spanId, orderId.
+      console: ecs
 ledgerline:
   webhook:
     mockpay:

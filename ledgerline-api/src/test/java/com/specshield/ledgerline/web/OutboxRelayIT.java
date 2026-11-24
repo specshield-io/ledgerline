@@ -93,6 +93,9 @@ class OutboxRelayIT extends ApiTestSupport {
     MeterRegistry meters;
 
     @Autowired
+    io.micrometer.observation.ObservationRegistry observations;
+
+    @Autowired
     JsonMapper json;
 
     @Autowired
@@ -130,7 +133,7 @@ class OutboxRelayIT extends ApiTestSupport {
 
     /** A dispatcher whose backoff uses a seeded generator, so the test can predict every delay. */
     OutboxDispatcher seededDispatcher(long seed) {
-        return new OutboxDispatcher(store, client, seededPolicy(seed), metrics, clock, properties);
+        return new OutboxDispatcher(store, client, seededPolicy(seed), metrics, observations, clock, properties);
     }
 
     BackoffPolicy seededPolicy(long seed) {
@@ -505,7 +508,7 @@ class OutboxRelayIT extends ApiTestSupport {
                 clock,
                 json);
         OutboxDispatcher dispatcher =
-                new OutboxDispatcher(store, unreachable, seededPolicy(9), metrics, clock, properties);
+                new OutboxDispatcher(store, unreachable, seededPolicy(9), metrics, observations, clock, properties);
         double before = counter("ledgerline.outbox.failed", "reason", "connect");
 
         assertThat(dispatcher.dispatchOnce()).isEqualTo(1);

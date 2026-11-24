@@ -8,6 +8,7 @@ import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.HexFormat;
@@ -58,7 +59,8 @@ public class MockPayScripts {
     private final Clock clock;
     private final JsonMapper json;
     private final WebhookSigner signer;
-    private final RandomGenerator random = RandomGenerator.of("L64X128MixRandom");
+    // Thread safe: concurrent payments must never get the same id (L64X128MixRandom is not).
+    private final RandomGenerator random = new SecureRandom();
     private final ExecutorService executor = Executors.newVirtualThreadPerTaskExecutor();
     private final HttpClient http;
 

@@ -2,6 +2,8 @@ package com.specshield.ledgerline.outbox;
 
 import com.specshield.ledgerline.application.OutboxMessage;
 import com.specshield.ledgerline.application.OutboxStore;
+import io.micrometer.observation.Observation;
+import io.micrometer.observation.ObservationRegistry;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -10,6 +12,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.MDC;
 import org.springframework.stereotype.Component;
 
 /**
@@ -37,6 +40,7 @@ public class OutboxDispatcher {
     private final MerchantDeliveryClient client;
     private final BackoffPolicy backoff;
     private final OutboxMetrics metrics;
+    private final ObservationRegistry observations;
     private final Clock clock;
     private final int batchSize;
 
@@ -45,12 +49,14 @@ public class OutboxDispatcher {
             MerchantDeliveryClient client,
             BackoffPolicy backoff,
             OutboxMetrics metrics,
+            ObservationRegistry observations,
             Clock clock,
             OutboxProperties properties) {
         this.store = store;
         this.client = client;
         this.backoff = backoff;
         this.metrics = metrics;
+        this.observations = observations;
         this.clock = clock;
         this.batchSize = properties.batchSize();
     }
@@ -70,6 +76,22 @@ public class OutboxDispatcher {
     }
 
     private void deliver(OutboxMessage message) {
+        MDC.put("orderId", message.aggregateId().toString());
+        try {
+            Observation observation = Observation.createNotStarted("outbox.deliver", observations)
+                    .contextualName("outbox deliver")
+                    .lowCardinalityKeyValue("event.type", message.eventType())
+                    .highCardinalityKeyValue("outbox.id", Long.toString(message.id()))
+                    .highCardinalityKeyValue("order.id", message.aggregateId().toString())
+                    .highCardinalityKeyValue("attempt", Integer.toString(message.attempts() + 1));
+            observation.observe(() -> observation.lowCardinalityKeyValue("result", attempt(message)));
+        } finally {
+            MDC.remove("orderId");
+        }
+    }
+
+    /** One attempt and its recorded result (span/timer {@code outbox.deliver}); returns the result tag. */
+    private String attempt(OutboxMessage message) {
         long started = System.nanoTime();
         DeliveryResult result;
         try {
@@ -115,5 +137,6 @@ public class OutboxDispatcher {
                     message.id(),
                     attempt);
         }
+        return result instanceof DeliveryResult.Failed f ? f.reason() : "delivered";
     }
 }

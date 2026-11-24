@@ -1,0 +1,1 @@
+{"Results":[{"Target":"app.jar","Vulnerabilities":[{"VulnerabilityID":"CVE-1","Severity":"CRITICAL"},{"VulnerabilityID":"CVE-2","Severity":"HIGH"}]},{"Target":"os","Vulnerabilities":null},{"Target":"x"}]}

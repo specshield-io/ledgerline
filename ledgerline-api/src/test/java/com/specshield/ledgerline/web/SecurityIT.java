@@ -9,8 +9,13 @@ import static org.hamcrest.Matchers.startsWith;
 import io.restassured.response.Response;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.boot.micrometer.metrics.test.autoconfigure.AutoConfigureMetrics;
 
-/** Roles, public paths, security headers and CORS. Synthetic accounts from the test profile. */
+/**
+ * Roles, public paths, security headers and CORS. Synthetic accounts from the test profile. Metrics export is on (as
+ * in a deployment) so the Prometheus endpoint exists; Spring Boot turns it off in tests by default.
+ */
+@AutoConfigureMetrics
 class SecurityIT extends ApiTestSupport {
 
     long deadOutboxRow() {
@@ -143,14 +148,20 @@ class SecurityIT extends ApiTestSupport {
     }
 
     @Test
-    @DisplayName("security headers: HSTS, nosniff, frame-ancestors none, X-Frame-Options, Referrer-Policy")
+    @DisplayName("security headers: HSTS, nosniff, CSP with frame-ancestors none, X-Frame-Options, Referrer-Policy,"
+            + " Permissions-Policy, COOP")
     void headers() {
         for (Response response : new Response[] {
             given().get("/api/v1/meta"), given().get("/api/v1/orders/not-a-uuid"), given().get("/actuator/env")
         }) {
             assertThat(response.header("Strict-Transport-Security")).isEqualTo("max-age=31536000 ; includeSubDomains");
             assertThat(response.header("X-Content-Type-Options")).isEqualTo("nosniff");
-            assertThat(response.header("Content-Security-Policy")).isEqualTo("frame-ancestors 'none'");
+            assertThat(response.header("Content-Security-Policy"))
+                    .isEqualTo(com.specshield.ledgerline.config.SecurityConfig.CONTENT_SECURITY_POLICY)
+                    .contains("frame-ancestors 'none'")
+                    .contains("script-src 'self';");
+            assertThat(response.header("Permissions-Policy")).contains("camera=()");
+            assertThat(response.header("Cross-Origin-Opener-Policy")).isEqualTo("same-origin");
             assertThat(response.header("X-Frame-Options")).isEqualTo("DENY");
             assertThat(response.header("Referrer-Policy")).isEqualTo("strict-origin-when-cross-origin");
         }

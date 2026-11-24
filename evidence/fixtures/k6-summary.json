@@ -1,0 +1,1 @@
+{"runId":"fixture","metrics":{"http_req_duration":{"type":"trend","values":{"avg":12.3,"p(95)":41.26,"p(99)":88.1}},"http_reqs":{"type":"counter","values":{"count":27000,"rate":180.04}},"http_req_failed":{"type":"rate","values":{"rate":0.0002,"passes":5,"fails":26995}}}}
