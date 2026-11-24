@@ -13,6 +13,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 - The webhook signature verifier feeds the timestamp prefix and the raw body to the HMAC separately instead of
   concatenating them into a buffer sized from the request, so no array length is computed from user input
   (CodeQL `java/tainted-arithmetic`, alert #11). Signatures and behaviour are unchanged.
+- Request methods and URIs are sanitised before they are logged (non-printable characters replaced, length
+  capped at 512), so a crafted request cannot forge log lines in the plain-text log format (CodeQL
+  `java/log-injection`, alerts #9 and #10).
+
+### Changed
+
+- README limitations: the CodeQL alert is fixed, so the evidence file reports `codeql: pass`.
 
 ## [1.0.0] - 2026-11-24
 

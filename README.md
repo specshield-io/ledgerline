@@ -298,8 +298,8 @@ What it is **not**, honestly:
   the key answers `409` until it expires after 24 h ([ADR 0005](docs/adr/0005-idempotency-key-design.md)).
 - **No retention jobs** for the inbox, audit log or outbox tables yet; the webhook endpoint is not rate limited
   (it is authenticated by signature), so rejected deliveries can grow the inbox.
-- **Open code-scanning alert:** CodeQL reports one high-severity `java/tainted-arithmetic` alert in
-  `WebhookSignatureVerifier`, so the evidence file shows `codeql: fail`. It is not yet triaged.
+- **Code-scanning notes are open.** CodeQL has no open alerts above `note` severity; the remaining notes (unused
+  local variables and parameters, unchecked number parsing) are code-quality items not yet cleaned up.
 - **Alert rules are not configured.** The metrics to alert on are listed in the [runbook](docs/runbook.md#what-to-alert-on).
 
 ## 8. At 10x scale we would…
