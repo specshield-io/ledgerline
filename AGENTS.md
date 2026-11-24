@@ -168,6 +168,8 @@ Requires JDK 25 (`JAVA_HOME` must point at it) and Docker (for Testcontainers an
 | `./mvnw -Pmutation -Dskip.frontend test-compile pitest:mutationCoverage` | PIT, fails below 70 % (LL-N02) |
 | `perf/run.sh` | k6 load test + database check (LL-N01); stack up with `docker-compose.perf.yml` first |
 | `node --test evidence/assemble.test.mjs` | Evidence assembler tests (LL-N08) |
+| `scripts/fresh-clone-check.sh` | Quick start from a clean state: compose up, healthy within 180 s, one scenario, tear down (LL-N06) |
+| `docker run --rm -v "$PWD:/input:ro" -w /input lycheeverse/lychee:0.24.2 --config lychee.toml './**/*.md'` | Link and anchor check of all Markdown, as CI's `link-check` |
 
 Docker notes: with Colima, export `DOCKER_HOST=unix://$HOME/.colima/default/docker.sock` and
 `TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE=/var/run/docker.sock` before `./mvnw verify`. Compose host ports
@@ -184,7 +186,8 @@ A change is done only when **all** of the following hold:
       `npx playwright test`) **and** in CI.
 - [ ] No new warnings (compiler, build, test output, Spotless).
 - [ ] OpenAPI is updated (annotations/descriptions accurate; `/v3/api-docs` reflects the change).
-- [ ] The relevant README section is updated.
+- [ ] The relevant README section (or `docs/reference.md`, `docs/runbook.md`) is updated, links still resolve
+      (`link-check`), and `CHANGELOG.md` has a line under `[Unreleased]`.
 - [ ] No secrets committed: no tokens, keys or real credentials. Local dev credentials guard only
       throwaway containers with synthetic data.
 - [ ] Honesty rule respected: any claimed number is reproducible.
