@@ -8,6 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 
 ## [Unreleased]
 
+### Security
+
+- The webhook signature verifier feeds the timestamp prefix and the raw body to the HMAC separately instead of
+  concatenating them into a buffer sized from the request, so no array length is computed from user input
+  (CodeQL `java/tainted-arithmetic`, alert #11). Signatures and behaviour are unchanged.
+
 ## [1.0.0] - 2026-11-24
 
 First tagged release of the SpecShield Labs internal demonstration. Synthetic data only; not a production payment
