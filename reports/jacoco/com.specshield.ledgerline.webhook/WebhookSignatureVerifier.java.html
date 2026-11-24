@@ -59,9 +59,9 @@ public final class WebhookSignatureVerifier {
 <span class="fc bfc" id="L59" title="All 2 branches covered.">        if (Math.abs(ageSeconds) &gt; tolerance.toSeconds()) {</span>
 <span class="fc" id="L60">            throw new InvalidSignatureException(Reason.TIMESTAMP_OUT_OF_TOLERANCE);</span>
         }
-<span class="fc" id="L62">        byte[] signedPayload = signedPayload(parsed.timestamp(), body);</span>
+<span class="fc" id="L62">        byte[] prefix = signedPrefix(parsed.timestamp());</span>
 <span class="fc bfc" id="L63" title="All 2 branches covered.">        for (SecretKeySpec key : keys) {</span>
-<span class="fc" id="L64">            byte[] expected = hmac(key, signedPayload);</span>
+<span class="fc" id="L64">            byte[] expected = hmac(key, prefix, body);</span>
 <span class="fc bfc" id="L65" title="All 2 branches covered.">            for (byte[] candidate : parsed.signatures()) {</span>
 <span class="fc bfc" id="L66" title="All 2 branches covered.">                if (MessageDigest.isEqual(expected, candidate)) {</span>
 <span class="fc" id="L67">                    return;</span>
@@ -114,44 +114,46 @@ public final class WebhookSignatureVerifier {
 <span class="fc" id="L114">        return new ParsedHeader(timestamp, signatures);</span>
     }
 
-    static byte[] signedPayload(long timestamp, byte[] body) {
-<span class="fc" id="L118">        byte[] prefix = (timestamp + &quot;.&quot;).getBytes(StandardCharsets.US_ASCII);</span>
-<span class="fc" id="L119">        byte[] payload = new byte[prefix.length + body.length];</span>
-<span class="fc" id="L120">        System.arraycopy(prefix, 0, payload, 0, prefix.length);</span>
-<span class="fc" id="L121">        System.arraycopy(body, 0, payload, prefix.length, body.length);</span>
-<span class="fc" id="L122">        return payload;</span>
+    /** The {@code TIMESTAMP + &quot;.&quot;} that precedes the raw body in the signed payload. */
+    static byte[] signedPrefix(long timestamp) {
+<span class="fc" id="L119">        return (timestamp + &quot;.&quot;).getBytes(StandardCharsets.US_ASCII);</span>
     }
 
-    private static byte[] hmac(SecretKeySpec key, byte[] payload) {
+    /**
+     * HMAC of {@code prefix + body}, fed to the MAC in two parts: the body is never copied and no length is computed
+     * from it, so a large or hostile body cannot overflow a buffer size.
+     */
+    private static byte[] hmac(SecretKeySpec key, byte[] prefix, byte[] body) {
         try {
-<span class="fc" id="L127">            Mac mac = Mac.getInstance(ALGORITHM);</span>
-<span class="fc" id="L128">            mac.init(key);</span>
-<span class="fc" id="L129">            return mac.doFinal(payload);</span>
-<span class="nc" id="L130">        } catch (NoSuchAlgorithmException | InvalidKeyException e) {</span>
-<span class="nc" id="L131">            throw new IllegalStateException(&quot;HmacSHA256 unavailable&quot;, e);</span>
+<span class="fc" id="L128">            Mac mac = Mac.getInstance(ALGORITHM);</span>
+<span class="fc" id="L129">            mac.init(key);</span>
+<span class="fc" id="L130">            mac.update(prefix);</span>
+<span class="fc" id="L131">            return mac.doFinal(body);</span>
+<span class="nc" id="L132">        } catch (NoSuchAlgorithmException | InvalidKeyException e) {</span>
+<span class="nc" id="L133">            throw new IllegalStateException(&quot;HmacSHA256 unavailable&quot;, e);</span>
         }
     }
 
     private static boolean isDigits(String s, int maxLength) {
-<span class="fc bfc" id="L136" title="All 4 branches covered.">        if (s.isEmpty() || s.length() &gt; maxLength) {</span>
-<span class="fc" id="L137">            return false;</span>
+<span class="fc bfc" id="L138" title="All 4 branches covered.">        if (s.isEmpty() || s.length() &gt; maxLength) {</span>
+<span class="fc" id="L139">            return false;</span>
         }
-<span class="fc bfc" id="L139" title="All 2 branches covered.">        for (int i = 0; i &lt; s.length(); i++) {</span>
-<span class="fc bfc" id="L140" title="All 4 branches covered.">            if (s.charAt(i) &lt; '0' || s.charAt(i) &gt; '9') {</span>
-<span class="fc" id="L141">                return false;</span>
+<span class="fc bfc" id="L141" title="All 2 branches covered.">        for (int i = 0; i &lt; s.length(); i++) {</span>
+<span class="fc bfc" id="L142" title="All 4 branches covered.">            if (s.charAt(i) &lt; '0' || s.charAt(i) &gt; '9') {</span>
+<span class="fc" id="L143">                return false;</span>
             }
         }
-<span class="fc" id="L144">        return true;</span>
+<span class="fc" id="L146">        return true;</span>
     }
 
     private static boolean isHex(String s) {
-<span class="fc bfc" id="L148" title="All 2 branches covered.">        for (int i = 0; i &lt; s.length(); i++) {</span>
-<span class="fc" id="L149">            char c = s.charAt(i);</span>
-<span class="pc bpc" id="L150" title="4 of 12 branches missed.">            if (!((c &gt;= '0' &amp;&amp; c &lt;= '9') || (c &gt;= 'a' &amp;&amp; c &lt;= 'f') || (c &gt;= 'A' &amp;&amp; c &lt;= 'F'))) {</span>
-<span class="nc" id="L151">                return false;</span>
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        for (int i = 0; i &lt; s.length(); i++) {</span>
+<span class="fc" id="L151">            char c = s.charAt(i);</span>
+<span class="pc bpc" id="L152" title="4 of 12 branches missed.">            if (!((c &gt;= '0' &amp;&amp; c &lt;= '9') || (c &gt;= 'a' &amp;&amp; c &lt;= 'f') || (c &gt;= 'A' &amp;&amp; c &lt;= 'F'))) {</span>
+<span class="nc" id="L153">                return false;</span>
             }
         }
-<span class="fc" id="L154">        return true;</span>
+<span class="fc" id="L156">        return true;</span>
     }
 }
 </pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.16.202610240946</span></div></body></html>
