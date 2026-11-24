@@ -155,7 +155,11 @@ public class ApiExceptionHandler extends ResponseEntityExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ProblemDetail> unexpected(Exception e, HttpServletRequest request) {
-        log.error("unhandled exception for {} {}", request.getMethod(), request.getRequestURI(), e);
+        log.error(
+                "unhandled exception for {} {}",
+                LogSafe.of(request.getMethod()),
+                LogSafe.of(request.getRequestURI()),
+                e);
         return respond(
                 HttpStatus.INTERNAL_SERVER_ERROR,
                 ProblemTypes.INTERNAL_ERROR,

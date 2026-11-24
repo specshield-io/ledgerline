@@ -39,8 +39,8 @@ public class CorrelationIdFilter extends OncePerRequestFilter {
         } finally {
             log.info(
                     "{} {} -> {} ({} ms)",
-                    request.getMethod(),
-                    request.getRequestURI(),
+                    LogSafe.of(request.getMethod()),
+                    LogSafe.of(request.getRequestURI()),
                     response.getStatus(),
                     (System.nanoTime() - start) / 1_000_000);
             MDC.remove(OrderService.CORRELATION_ID_MDC_KEY);
